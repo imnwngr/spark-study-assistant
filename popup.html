@@ -1,0 +1,12 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spark Study Assistant</title><link rel="stylesheet" href="styles.css"></head>
+<body class="popup"><main>
+<header class="brand"><img src="icons/icon48.png" alt=""><div><strong>Spark Study Assistant</strong><span>Trợ lý bài tập NGL Spark</span></div><button id="settings" class="icon-button" title="Cài đặt" aria-label="Cài đặt">⚙</button></header>
+<div class="intro"><span class="step">01</span><div><strong>Quét bài tập</strong><p>Đọc nội dung từ iframe đang mở trên Spark.</p></div></div>
+<div class="actions"><button id="scan" class="secondary">Quét trang</button><button id="auto" class="primary">Giải + điền ngay</button></div>
+<div id="status" role="status" class="status">Đang chờ quét…</div>
+<section id="results" hidden><div class="section-title"><span class="step">02</span><div><strong id="title">Bài tập</strong><p id="count"></p></div></div><div id="questions" class="questions"></div>
+<div class="actions"><button id="solve" class="primary">Giải bài</button><button id="copy" class="secondary">Sao chép</button></div>
+<div class="section-title after"><span class="step">03</span><div><strong>Điền vào trang</strong><p>Chỉ điền sau khi bạn xem đáp án. Không tự nhấn Check Answers / Submit.</p></div></div>
+<button id="apply" class="wide secondary" disabled>Điền đáp án đã chọn</button><div id="fillReport" class="small"></div></section>
+<footer>Chỉ gửi nội dung câu hỏi đến API nếu bạn bật AI trong Cài đặt. Không gửi cookie hay URL có token.</footer>
+</main><script src="popup.js"></script></body></html>
