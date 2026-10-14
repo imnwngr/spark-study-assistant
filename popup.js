@@ -76,18 +76,31 @@ function render() {
     line.append(lbl,input);card.append(line);
     const hint=el('p','explanation');hint.id='explain-'+q.id;
     if(!q.applyable) hint.textContent='Chưa hỗ trợ tự thao tác dạng này; có thể sao chép đáp án.';
-    card.append(hint);root.append(card);
+    const alternatives=el('div','alternatives');alternatives.id='alts-'+q.id;
+    card.append(hint,alternatives);root.append(card);
   }
 }
 function updateAnswers() {
   for(const q of state.questions) {
     const ans=state.answers.get(q.id);
-    const input=$('answer-'+q.id), note=$('explain-'+q.id);
-    if (!input || !note) continue;
-    if(ans && ans.answer) input.value=ans.answer;
-    let label=ans?.source==='ai'?'AI':ans?.source==='user'?'Bạn nhập':'Offline';
+    const input=$('answer-'+q.id), note=$('explain-'+q.id), alts=$('alts-'+q.id);
+    if (!input || !note || !alts) continue;
+    input.value=ans?.answer||'';
+    let label=ans?.source==='ai'?(ans.provider||'AI'):ans?.source==='compare'?'So sánh':ans?.source==='user'?'Bạn chọn':'Offline';
     note.textContent=ans ? `${label} · ${ans.confidence||'low'} · ${ans.explanation||''}` : 'Chưa có đáp án.';
     if(!q.applyable) note.textContent+=' Không hỗ trợ tự điền dạng này.';
+    alts.replaceChildren();
+    for(const alternative of ans?.alternatives||[]) {
+      const button=el('button','alt-button',`${alternative.answer} (${alternative.providers.join(', ')})`);
+      button.type='button';
+      button.title='Chọn phương án này (vẫn cần kiểm tra trước khi điền)';
+      button.addEventListener('click',()=>{
+        state.answers.set(q.id,{id:q.id,answer:alternative.answer,confidence:'high',source:'user',
+          explanation:'Bạn đã chọn phương án sau khi so sánh kết quả.',alternatives:ans.alternatives});
+        updateAnswers();$('apply').disabled=false;
+      });
+      alts.append(button);
+    }
   }
 }
 async function solve() {
@@ -101,9 +114,10 @@ async function solve() {
     for(const ans of response.result.answers||[]) state.answers.set(ans.id,ans);
     state.solved=true;
     updateAnswers();
-    $('apply').disabled=false;
     const complete=(response.result.answers||[]).filter(a=>a.answer).length;
-    status(`${response.result.mode==='ai'?'AI':'Offline'}: Có đáp án ${complete}/${state.questions.length} câu.`+(response.result.warning?' '+response.result.warning:''), complete?'success':'error');
+    $('apply').disabled=complete===0;
+    const label=response.result.mode==='compare'?'So sánh API':response.result.mode==='ai'?`AI (${response.result.provider||'API'})`:'Offline';
+    status(`${label}: Có đáp án đủ đồng thuận ${complete}/${state.questions.length} câu.`+(response.result.warning?' '+response.result.warning:''), complete?'success':'normal');
     return complete > 0;
   }catch(error){status(errString(error),'error');return false;}
   finally{$('solve').disabled=false;}
@@ -115,7 +129,10 @@ function answerText() {
     lines.push(`${i+1}. ${q.context}`);
     if(q.options?.length)lines.push(`Options: ${q.options.join(' | ')}`);
     const answer=state.answers.get(q.id)?.answer||'';
-    lines.push(`Answer: ${answer||'[chưa có]'}`,'');
+    lines.push(`Answer: ${answer||'[chưa có]'}`);
+    const alts=state.answers.get(q.id)?.alternatives||[];
+    if(alts.length) lines.push('So sánh: '+alts.map(x=>`${x.answer} (${x.providers.join(', ')})`).join(' | '));
+    lines.push('');
   }
   return lines.join('\n');
 }

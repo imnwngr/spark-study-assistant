@@ -1,8 +1,52 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cài đặt – Spark Study Assistant</title><link rel="stylesheet" href="styles.css"></head>
-<body class="options"><main class="settings-page"><h1>Spark Study Assistant</h1><p class="lead">Cấu hình giải bài bằng AI. Không có API key, extension vẫn dùng các quy tắc offline cho một số dạng câu.</p>
-<div class="settings-card"><label class="checkline"><input type="checkbox" id="useAI"><span><strong>Cho phép gọi OpenAI API</strong><small>Gửi văn bản bài tập và các lựa chọn, không gửi cookie hoặc token đăng nhập.</small></span></label>
-<label for="apiKey">OpenAI API key</label><div class="field-row"><input id="apiKey" type="password" autocomplete="off" placeholder="sk-…"><button id="toggleKey" class="secondary">Hiện</button></div><p class="small">API key được lưu trong <code>chrome.storage.local</code> trên trình duyệt này. Sử dụng API có thể phát sinh chi phí; tài khoản ChatGPT không đồng nghĩa có API credit.</p>
-<label for="model">Model</label><input id="model" type="text" placeholder="gpt-4o-mini" value="gpt-4o-mini">
-<div class="actions"><button id="save" class="primary">Lưu cài đặt</button><button id="clear" class="secondary">Xóa API key</button></div><p id="message" role="status" class="status"></p></div>
-<div class="settings-card"><h2>Giới hạn hiện tại</h2><p>Dropdown và ô nhập văn bản: hỗ trợ điền tự động. Sắp xếp từ kéo/thả và nhấp sửa lỗi: có thể giải và hiển thị đáp án, nhưng không tự thao tác nếu chưa có bộ điều khiển DOM được kiểm chứng.</p><p>Extension không tự nhấn nộp bài, không vượt giới hạn đăng nhập và không đảm bảo mọi câu trả lời đều đúng. Hãy kiểm tra đáp án trước khi điền.</p></div>
-</main><script src="options.js"></script></body></html>
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cài đặt – Spark Study Assistant</title><link rel="stylesheet" href="styles.css"></head>
+<body class="options"><main class="settings-page">
+  <h1>Spark Study Assistant <span class="version">v0.2.0</span></h1>
+  <p class="lead">Dùng nhiều API kiểu OpenAI Chat Completions, tự sửa endpoint và model, hoặc so sánh đáp án giữa nhiều mô hình. Không có API vẫn dùng bộ quy tắc offline hiện tại.</p>
+  <div class="settings-card">
+    <h2>Chế độ giải bài</h2>
+    <label for="aiMode" class="field-label">Chọn cách giải</label>
+    <select id="aiMode" class="settings-input">
+      <option value="offline">Offline – chỉ dùng quy tắc tích hợp (không gửi dữ liệu)</option>
+      <option value="single">Một API – dùng cấu hình chính</option>
+      <option value="compare">So sánh – gọi các cấu hình được đánh dấu</option>
+    </select>
+    <p class="small">So sánh sẽ gọi nhiều API cho mỗi lần giải và có thể phát sinh chi phí ở từng nhà cung cấp. Chỉ tự điền khi ít nhất hai mô hình trả về cùng một đáp án; đáp án bất đồng cần chọn thủ công.</p>
+    <label for="activeProfile" class="field-label">Cấu hình chính (chế độ một API)</label>
+    <select id="activeProfile" class="settings-input"></select>
+  </div>
+  <div class="settings-card">
+    <h2>Danh sách cấu hình API <span id="profileCount" class="version"></span></h2>
+    <p class="small">Có thể lưu tối đa 8 cấu hình, gồm OpenAI, OpenRouter, Groq, DeepSeek, Gemini (giao diện OpenAI-compatible), Ollama chạy trên máy hoặc endpoint tự nhập. Tên model và endpoint đều chỉnh được.</p>
+    <div class="field-row profile-create">
+      <select id="newProvider" class="settings-input" aria-label="Nhà cung cấp mới"></select>
+      <button id="addProfile" class="secondary" type="button">+ Thêm API</button>
+    </div>
+    <div id="profilesList" class="profile-list" aria-label="Các cấu hình đã thêm"></div>
+    <div id="profileEditor" hidden>
+      <div class="editor-head"><h3>Chỉnh sửa cấu hình</h3><button id="removeProfile" type="button" class="danger">Xóa cấu hình</button></div>
+      <label for="profileName" class="field-label">Tên hiển thị</label><input id="profileName" class="settings-input" maxlength="80">
+      <label for="provider" class="field-label">Nhà cung cấp / mẫu mặc định</label><select id="provider" class="settings-input"></select>
+      <label for="endpoint" class="field-label">Endpoint đầy đủ (URL kết thúc bằng /chat/completions)</label><input id="endpoint" class="settings-input" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/v1/chat/completions">
+      <label for="model" class="field-label">Model ID</label><input id="model" class="settings-input" autocomplete="off" spellcheck="false" placeholder="Tên model do nhà cung cấp hỗ trợ">
+      <label for="apiKey" class="field-label">API key (để trống nếu dùng Ollama local)</label>
+      <div class="field-row"><input id="apiKey" class="settings-input" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập khóa của cấu hình này"><button id="toggleKey" class="secondary" type="button">Hiện</button></div>
+      <label for="responseFormat" class="field-label">Định dạng đầu ra</label>
+      <select id="responseFormat" class="settings-input">
+        <option value="json_schema">JSON Schema nghiêm ngặt (OpenAI và model hỗ trợ)</option>
+        <option value="json_object">JSON Object (nhiều API tương thích)</option>
+        <option value="prompt_only">Chỉ hướng dẫn qua prompt (tương thích rộng hơn)</option>
+      </select>
+      <label class="checkline" for="enabled"><input type="checkbox" id="enabled"><span><strong>Tham gia so sánh</strong><small>Bật để gọi cấu hình này khi chọn “So sánh”.</small></span></label>
+      <p class="small">Lưu ý: không phải mọi dịch vụ đều tương thích hoàn toàn với OpenAI API. Endpoint này chỉ hỗ trợ dạng <code>POST /chat/completions</code>; API Anthropic native hoặc định dạng khác chưa hỗ trợ.</p>
+    </div>
+    <div class="actions"><button id="save" class="primary">Lưu cài đặt và cấp quyền endpoint</button></div>
+    <p id="message" role="status" class="status"></p>
+  </div>
+  <div class="settings-card"><h2>Riêng tư và giới hạn</h2>
+    <p>Extension chỉ gửi cấu trúc câu hỏi, đáp án lựa chọn đến endpoint bạn đã cấu hình khi bật API. Không gửi cookie, token đăng nhập Spark hoặc URL của trang học. Khóa API nằm trong <code>chrome.storage.local</code> của Chrome, không đồng bộ với GitHub.</p>
+    <p><strong>Endpoint tùy chỉnh là máy chủ do bạn chọn.</strong> Khi dùng, nội dung bài tập và API key của cấu hình đó sẽ được gửi tới máy chủ này. Chỉ sử dụng dịch vụ bạn tin tưởng. Quyền truy cập host được Chrome hỏi khi lưu cấu hình.</p>
+    <p>Dạng kéo/thả và click sửa lỗi vẫn chưa hỗ trợ tự thao tác đầy đủ; kết quả cần được kiểm tra trước khi nộp bài.</p>
+  </div>
+</main><script src="providers.js"></script><script src="options.js"></script></body></html>

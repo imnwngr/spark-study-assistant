@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Spark Study Assistant",
-  "description": "Đọc bài tập trong iframe của NGL Spark, gợi ý đáp án và hỗ trợ điền đáp án sau khi xem trước.",
-  "version": "0.1.0",
+  "description": "Hỗ trợ giải bài NGL Spark bằng quy tắc offline hoặc nhiều API OpenAI-compatible tùy chỉnh, so sánh đáp án trước khi điền.",
+  "version": "0.2.0",
   "default_locale": "vi",
   "icons": {
     "16": "icons/icon16.png",
@@ -41,5 +41,10 @@
       ],
       "run_at": "document_idle"
     }
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ]
 }
