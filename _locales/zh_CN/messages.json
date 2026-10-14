@@ -1,0 +1,8 @@
+{
+  "extName": {
+    "message": "Spark Study Assistant"
+  },
+  "extDescription": {
+    "message": "读取 NGL Spark 练习，比较 AI 答案，并通过多语言界面安全填写。"
+  }
+}

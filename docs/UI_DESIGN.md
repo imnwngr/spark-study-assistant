@@ -1,60 +1,35 @@
-# UI/UX notes — Spark Study Assistant v0.3.0
+# Design system · v0.4.0
 
-This is a **native-inspired**, not Apple-affiliated, interface. It uses system fonts, quiet neutral surfaces, a single blue accent, restrained blur/shadows and generous touch targets. All design assets are local.
+**Design intent:** a pocket-sized, review-first study tool. The user is a learner working in a small extension popup, often with an assignment occupying the main browser window. The dominant task is **scan → solve → inspect → fill**. Submission and navigation are explicit, higher-risk secondary actions.
 
-## Product principles
+This is an in-place redesign following [Hallmark's](https://github.com/nutlope/hallmark) `SKILL.md`, `references/responsive.md`, `references/interaction-and-states.md` and `references/slop-test.md`. Hallmark's creative principles were applied inside the existing vanilla HTML/CSS/JS architecture, preserving DOM ids and the existing scanning/solver/provider logic. The user explicitly requested Apple/iOS, so that direction took precedence over choosing a Hallmark catalog theme.
 
-1. **One clear flow** — Scan, solve, review, apply. Never auto-submit to Spark.
-2. **Context first** — Before a worksheet is found, show a friendly onboarding hero. After scan, compress the hero and bring questions above the fold.
-3. **Editable answers** — All detected answers remain editable, with alternative API opinions shown for disputed items. Non-automatable question types say so explicitly.
-4. **Honest status** — Separate waiting, success and error states. No guarantee of successful DOM clicks on inaccessible Spark controls.
-5. **Progressive disclosure** — Collapsible questions and advanced API output settings reduce cognitive load, but do not hide essential controls.
-6. **Controlled data flow** — Preserve endpoint validation and permission request at save. Do not display API keys, access tokens or cookies in the interface.
+## Interface structure
 
-## UI map
+- **Popup:** 376 CSS px. Compact identity → status/mode strip → Scan and Solve & fill → 3-stage progress → scanned exercise → bounded question region → two-row action dock. Higher-risk submission is visually secondary and initially disabled.
+- **Settings:** persistent sidebar (two-column nav grid under 760 px) → language and appearance → answer mode → submit workflow → AI profiles → privacy. Persisted save bar stays reachable.
+- **Typography:** platform system text stack (SF on Apple devices) as a deliberate iOS design requirement. Clear 10–20 px scale for compact controls and 17–32 px scale for settings.
+- **Color:** system-like surfaces with sparing blue interaction accent. Status semantic colors separate successful, pending and failed states. All colours and font stacks use shared CSS tokens.
+- **Motion:** microinteraction color/background changes; reduced-motion preference removes transitions. No fake app chrome, decorative gradients, hover scale animations or animated number counters.
+- **Accessibility:** native buttons, `fieldset`/radio modes, editable `<select>` and text fields, focus-visible outlines, `aria-live` status, content-based disabled states and no horizontal scrolling at 320/375/390/414/768 px.
 
-| Surface | Structure |
-| --- | --- |
-| Popup, no worksheet | Header, introduction, Scan/Auto buttons, progress, status, help |
-| Popup, scanned | Compact Scan/Auto bar, progress, status, worksheet summary, collapsible question cards, Solve/Copy, review/Apply |
-| Settings | Left navigation, mode cards, active profile (single mode), profile manager/editor, privacy notes, sticky Save |
+## Localization
 
-## Style tokens
+`i18n.js` is the single UI lexicon for `en`, `vi`, `zh-CN` and `zh-TW`, with English as the first-run default. Static visible strings use `data-i18n`; dynamic content uses `SparkI18n.t`. Saved settings use `uiLanguage` and `uiTheme` in `chrome.storage.local`; `manifest.json` has the corresponding browser-supported locale directories (`en`, `vi`, `zh_CN`, `zh_TW`). Explanations from models are not forcibly translated because they are untrusted content returned by the configured engine.
 
-- Canvas: `#f5f5f7` (light), `#111114` (dark)
-- Text: `#1d1d1f` (light), `#f6f6f8` (dark)
-- Accent: `#007aff` (light), `#0a84ff` (dark)
-- Card radius: 15–20px; grouped control radius 11–13px
-- Motion: 160–200ms for hover/focus only, disabled for `prefers-reduced-motion`
-- Font: `-apple-system`, BlinkMacSystemFont, native system fallback
+## Submission safety
 
-## Accessibility
+`Submit & next` requires a successful fill report for **every item** in the latest frame scan, an explicit user click + browser confirmation dialog, and a visible enabled Check Answers control. The content script locks the action against replays. Navigation requires an observed check-state change and an unambiguous enabled Next learning object control; otherwise it stops. It does not claim to replace the site's final score submission until observed and tested.
 
-- Real buttons, labels, fieldsets, radio buttons, `<details>` disclosure controls.
-- Keyboard-visible focus styles on buttons, inputs and selections.
-- `aria-live="polite"` on status/result text. Controls have accessible labels.
-- A reduced-motion mode and OS-controlled dark/light theme.
-- Neither the popup nor settings depend on hover-only interactions.
+## Hallmark self-audit
 
-## Scope & limitations
+| Axis | Score (1–5) | Why |
+|---|---:|---|
+| Philosophy | 5 | Review-first learning, not auto-clicking for its own sake. |
+| Hierarchy | 5 | Primary scan/solve actions, visible answer list and restrained secondary controls. |
+| Execution | 4 | Chromium smoke tests passed; site-specific integration remains to be verified. |
+| Specificity | 5 | Purpose-built around Spark frame anatomy and a small popup. |
+| Restraint | 5 | No hero gradients, fake iPhone frames or remote font/UI runtime. |
+| Variety | 4 | Popup utility workspace and Settings preferences page use distinct rhythms. |
 
-- v0.3.0 is a UI-focused update. `background.js`, `content.js`, `providers.js` and `solver.js` are unchanged.
-- The historical **offline rule engine** remains available for compatibility and as the existing fallback. No new offline engine is installed.
-- A Chrome MV3 page is still subject to the source site's iframe DOM/access limitations, content scripts and Chrome permissions.
-- UI was exercised in a local Chromium mock: 408px popup and 1440px / 390px settings, with provider switching, mode selection, save and answer apply mocked. It has **not** been verified end-to-end against a logged-in NGL Spark account.
-- Demo screenshots use invented worksheet content and dummy provider profiles. They are not evidence of live API/Spark success.
-
-## Run tests
-
-```bash
-node --test tests/*.test.js
-```
-
-Review checklist for manual Chrome testing:
-
-- Install/update the unpacked extension, then **Reload** it in `chrome://extensions/`.
-- Open an assigned Spark worksheet; scan, solve with one API, edit one answer, apply to the webpage.
-- Test comparison mode including disagreement and a failed API request.
-- Open Settings, edit/select profiles, switch provider, change endpoint, save and grant permissions.
-- Reopen Settings to confirm persistence; verify error states for no API key, unsupported model and permission rejection.
-- Test popup scroll/keyboard navigation and Chrome system dark mode.
+**Checks performed:** multilingual UI rendering, explicit light/dark themes, vertical scrolling without horizontal overflow in Chromium, disabled state checks, reduced-motion styling, per-frame submission simulation. These are not substitutes for testing a live Spark assignment.

@@ -63,6 +63,17 @@ test('schema mode sends strict schema for OpenAI',()=>{
   assert.equal(body.messages[1].content.includes('I get home'),true);
   assert.equal(body.messages[1].content.includes('test-secret'),false);
 });
+test('AI explanations respect display language and default to English',()=>{
+  const profileData=profile('openai');
+  for(const [locale,language] of [
+    ['en','English'],['vi','Vietnamese'],['zh-CN','Simplified Chinese'],['zh-TW','Traditional Chinese']
+  ]){
+    const body=P.requestBody(profileData,{...payload,uiLanguage:locale});
+    assert.match(body.messages[0].content,new RegExp('explanations short in '+language));
+  }
+  const fallback=P.requestBody(profileData,payload);
+  assert.match(fallback.messages[0].content,/explanations short in English/);
+});
 test('json_object and prompt_only produce compatible requests',()=>{
   const groq=P.requestBody(profile('groq'),payload);
   assert.equal(groq.response_format.type,'json_object');

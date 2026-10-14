@@ -1,90 +1,137 @@
+<div align="center">
+
+<img src="icons/icon128.png" alt="Spark Study Assistant icon" width="86" height="86" />
+
 # Spark Study Assistant
 
-Chrome extension (Manifest V3) giúp **đọc bài tập NGL Spark ngay từ trang Dashboard**, gợi ý đáp án và hỗ trợ điền đáp án khi đã xem trước.
+**A quieter way to work through NGL Spark exercises.**
 
-**Trạng thái: bản thử nghiệm v0.3.0.** Đã triển khai mã nguồn, kiểm thử bộ giải offline và logic API bằng các ca kiểm thử, **chưa kiểm thử end-to-end với một tài khoản Spark đang đăng nhập**. Cấu trúc HTML hoặc hành vi của website có thể khác theo từng bài.
+Read the current exercise · Compare AI answers · Review · Fill · Check
 
-## Cài trên Chrome
+[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Design notes**](docs/UI_DESIGN.md) · [**Changelog**](CHANGELOG.md)
 
-1. Giải nén `spark-study-assistant.zip` ra một thư mục cố định.
-2. Truy cập `chrome://extensions/` → bật **Developer mode** (Chế độ dành cho nhà phát triển).
-3. Chọn **Load unpacked** (Tải tiện ích đã giải nén) → chọn đúng thư mục `spark-study-assistant` chứa `manifest.json`.
-4. Mở / tải lại trang `https://learn.eltngl.com/dashboard/assignments/...` và vào một bài tập.
-5. Nhấp biểu tượng extension → **Quét trang** → **Giải bài** → kiểm tra đáp án → **Điền đáp án đã chọn**. Hoặc chọn **Giải + điền ngay** để tự động thực hiện cả ba bước trên các loại ô được hỗ trợ (vẫn không tự nộp bài).
-6. Tự kiểm tra trên website trước khi nhấn `Check Answers` hoặc nộp bài. Extension **không tự nộp bài**.
+<img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-2563EB?style=flat-square" />
+<img alt="Version 0.4.0" src="https://img.shields.io/badge/version-0.4.0-171717?style=flat-square" />
+<img alt="No build tooling" src="https://img.shields.io/badge/build-none-3A8B63?style=flat-square" />
+<img alt="4 interface languages" src="https://img.shields.io/badge/languages-4-8B5CF6?style=flat-square" />
 
-Nếu Chrome đang mở Spark từ trước khi cài extension, hãy tải lại trang rồi quét lại.
+</div>
 
-## Giao diện v0.3.0 — Native-inspired design
+---
 
-Phiên bản này tập trung vào **UI/UX**, không đổi cách gọi API, thuật toán so sánh hay cách điền bài. Hai giao diện được thiết kế lại toàn bộ bằng HTML/CSS/JavaScript thuần (không thêm framework, font từ CDN, hay analytics):
+## A small space for focused work
 
-- **Popup**: quy trình 3 bước rõ ràng **Đọc bài → Giải bài → Điền bài**. Khi phát hiện bài, thẻ giới thiệu thu gọn để ưu tiên câu hỏi. Từng câu trong danh sách mở/thu gọn, có trạng thái đáp án và các phương án bất đồng để chọn lại.
-- **Options**: bố cục sidebar, ba lựa chọn chế độ giải dạng radio, quản lý API theo danh sách và form, API key có nút hiện/ẩn, nút Lưu cố định khi cuộn, trạng thái thay đổi chưa lưu, thông tin quyền riêng tư.
-- Hỗ trợ **sáng/tối theo hệ thống**, giao diện **responsive** ở cửa sổ hẹp, **bàn phím/focus states**, và **reduced motion**.
-- **Offline được giữ nguyên** như một lựa chọn tương thích. Chưa triển khai thư viện, model hay database offline mới. Hướng ưu tiên sử dụng API.
+Spark Study Assistant is a **locally installed Chrome extension** for selected exercise formats on [National Geographic Learning Spark](https://learn.eltngl.com/). It reads exercise elements inside supported frames, optionally asks an API-compatible AI model for answers, then lets you inspect and apply those answers.
 
-Ảnh chụp trong `docs/screenshots/` được dựng bằng dữ liệu giả lập, không phải screenshot từ tài khoản Spark thực tế. Giao diện cần được kiểm tra trực tiếp sau khi nạp lại extension trong Chrome.
+The interface borrows the **calm, practical language of iOS and macOS**: compact controls, deliberate hierarchy, subdued surfaces and an explicit review step. The redesign was audited against the [Hallmark](https://github.com/nutlope/hallmark) design skill, with product behavior preserved in vanilla HTML/CSS/JavaScript.
 
-Xem thêm [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md) để hiểu các nguyên tắc thiết kế, accessibility, các trạng thái và phạm vi thay đổi.
+<table align="center">
+<tr><td align="center"><img src="docs/screenshots/popup-light-v04.png" alt="Compact popup in light mode" width="300" /></td><td align="center"><img src="docs/screenshots/popup-dark-v04.png" alt="Compact popup in dark mode" width="300" /></td></tr>
+<tr><td align="center"><small>Light mode</small></td><td align="center"><small>Dark mode</small></td></tr>
+</table>
 
-## Chế độ giải bài (v0.3.0)
+> [!NOTE]
+> Screenshots use **mock exercise data**. They are not captured from a live student's account, and integration with every NGL Spark exercise format has not been verified.
 
-- **Offline:** Không cần API key, không gửi câu hỏi ra ngoài, vẫn dùng các quy tắc hẹp trong `solver.js`. Độ bao phủ có giới hạn; các câu không chắc chắn được để trống.
-- **Một API:** Mở ⚙ **Cài đặt** → thêm hoặc sửa một cấu hình API → đặt endpoint, tên model, API key, chế độ JSON → chọn **Cấu hình chính** → chọn **Một API** → **Lưu cài đặt** và cấp quyền truy cập máy chủ theo yêu cầu Chrome.
-- **So sánh API:** Thêm từ hai cấu hình trở lên, bật **Tham gia so sánh** cho từng cấu hình và chọn **So sánh**. Extension gọi các cấu hình đã bật, hiển thị phương án và nhà cung cấp. **Chỉ điền tự động nếu ít nhất hai cấu hình chạy thành công, trả cùng đáp án khác rỗng với confidence không phải low.** Với đáp án khác nhau, nhấn một phương án trong popup để chọn thủ công.
-- **Khi API lỗi:** Chế độ Một API hoặc So sánh mà tất cả đều lỗi sẽ chuyển về quy tắc offline và báo lý do. Nếu một số API so sánh lỗi, đáp án còn lại vẫn được hiển thị để bạn chọn nhưng không mặc nhiên coi một kết quả là đồng thuận.
+## What it does
 
-Có tối đa **8 cấu hình**. Các preset: OpenAI, OpenRouter, Groq, DeepSeek, Gemini (đầu cuối tương thích OpenAI), Ollama local và **Tùy chỉnh**. Mỗi cấu hình có URL endpoint hoàn chỉnh, model, key, và định dạng output (`json_schema`, `json_object`, `prompt_only`). Cấu hình API cũ (`apiKey`, `model`, `useAI`) được đọc tự động và chuyển sang danh sách mới khi bạn lưu cài đặt. Không có backend trung gian, extension gửi trực tiếp tới API bạn chọn.
+| Capability | Behavior |
+|---|---|
+| **Exercise recognition** | Scans authorized Spark iframe documents; detects dropdowns, input fields and some static formats. |
+| **Multiple AI services** | Configurable OpenAI-compatible Chat Completions endpoints for OpenAI, OpenRouter, Groq, DeepSeek, Gemini, Ollama local API and custom services. |
+| **Model comparison** | Compare configured providers; disagreements remain choices for you to review. |
+| **Editable answer review** | Expand questions, choose dropdown answers and edit suggested responses. |
+| **Controlled filling** | Attempts to fill supported controls and reports confirmed, uncertain, skipped or manual items. |
+| **Check & next — experimental** | Explicit confirmation required. Only proceeds when all recognized items are verified and the page exposes suitable controls. |
+| **Interface languages** | English (default), Tiếng Việt, 简体中文, 繁體中文. |
+| **Appearance** | Light, Dark or Follow system — persisted locally and shared between popup and Settings. |
+| **Legacy offline rules** | Kept for compatibility; not being expanded in this release. API-backed solving is the recommended path. |
 
-**Phạm vi tương thích:** Chỉ endpoint Chat Completions kiểu OpenAI (`POST .../chat/completions`); không mặc nhiên hỗ trợ Anthropic native, Responses API hay các endpoint theo JSON riêng. Không phải mọi model hỗ trợ `response_format`; nếu gặp HTTP 400 hãy đổi sang **Chỉ prompt**. Tên model preset chỉ là ví dụ, cần chọn model hiện được phép sử dụng ở nhà cung cấp của bạn.
+### Install from source
 
-**Ollama local:** là một *local HTTP API*, không phải engine thuần offline chạy bên trong extension. Bạn phải tự cài Ollama và tải model trước; mặc định `http://localhost:11434/v1/chat/completions`, không cần nhập key nếu chạy local. Không gửi câu hỏi lên cloud nếu model và server đều local. Xem [hướng dẫn Ollama](https://docs.ollama.com/api/openai-compatibility).
+1. Download or clone this repository.
+2. Open `chrome://extensions/` in Chromium/Chrome.
+3. Enable **Developer mode** and choose **Load unpacked**.
+4. Select the folder containing `manifest.json`.
+5. Open an exercise on `learn.eltngl.com`; refresh any Spark tab that was open before installation.
+6. Open the extension: **Scan page → Solve → Review → Fill**. Or use **Solve & fill** when you are confident the format is supported.
 
-Sử dụng API bên thứ ba có thể phát sinh chi phí nhiều lần ở chế độ so sánh. ChatGPT Plus không đồng nghĩa có credit cho OpenAI API.
+No `npm install`, build step or backend service is required for the UI and rule engine. **AI requests require a provider key/endpoint and potentially incur charges.** A ChatGPT subscription does not provide OpenAI API credits.
 
-### Nghiên cứu offline thuần, chưa triển khai
+### Language and appearance
 
-Xem [`docs/OFFLINE_RESEARCH.md`](docs/OFFLINE_RESEARCH.md) để so sánh `wink-nlp`, `nspell`, `CMUdict`, `sql.js`, `WebLLM`, `Transformers.js`, và `LanguageTool`. Chưa thêm thư viện, model hoặc database vào extension ở bản này.
+Open **Settings → General**. Select a display language and a theme, then press **Save changes**. English is the default for new installations, regardless of your browser language. Your selection is saved in `chrome.storage.local` and applies to the popup and Settings.
 
-## Dạng bài & mức hỗ trợ
+### Configure an AI provider
 
-| Dạng bài | Trích xuất / giải | Tự điền |
+Open **Settings → AI connections** to add a profile, edit its model ID, endpoint and key, and decide whether it participates in comparisons. In **Answers**, select **Single AI**, **Compare AIs**, or **Legacy rules**. Press **Save changes** and approve the host permission for the endpoint if Chrome asks.
+
+Only **OpenAI-compatible Chat Completions** is supported (`POST …/chat/completions`). Native Anthropic Messages / OpenAI Responses payloads are not implemented. Some models require **Prompt only** rather than a JSON response format. Ollama runs as a separate local service; it is not an embedded LLM.
+
+## Check answers and move forward — experimental
+
+The popup now includes **Submit & next**. This is an **explicit, confirmed** action; it does not run as part of **Solve & fill**.
+
+1. Review the proposed answers and choose **Fill selected answers**.
+2. The button is enabled **only if every recognized exercise item was filled and positively verified**. Unsupported, skipped or uncertain items block automation.
+3. Confirm the action. The extension attempts to click the known Spark **Check Answers** control (`[data-event="check"]`).
+4. It watches for a changed check state / answer status. Only if it can confirm this and **Move to next exercise** is enabled in Settings will it attempt the explicit next-learning-object control (`[data-event="forward_lo"]`).
+5. If the site does not confirm the step, or the next control is missing, the extension **stops** rather than clicking an unrelated element. Double submissions are also guarded within a scan session.
+
+> [!WARNING]
+> **`Check Answers` is not proven to be the final LMS score submission for all assignments.** The current HTML evidence shows separate `Check Answers`, `Results` and `Next` controls, but not every post-check state. This feature should be treated as an **opt-in beta**. It does **not** guarantee grading, score delivery or progression for every activity. See [DOM evidence needed](docs/AUTOMATION_DISCOVERY.md) for a privacy-safe way to help improve it.
+
+## Compatibility boundaries
+
+| Exercise type | Read / solve | Apply on-page |
 |---|---|---|
-| Dropdown (Vocabulary, Pronunciation) | Có, nếu HTML chứa lựa chọn; dùng quy tắc hoặc AI | Có, thử nhấp ô chọn; báo **chưa xác minh** nếu không xác nhận được |
-| Ô nhập văn bản (điền động từ, ngữ pháp) | Có, nếu có `input`, `textarea`, `contenteditable` | Có, phát `input` / `change` |
-| Sắp xếp từ bằng kéo-thả | Hiển thị và giải nếu phát hiện được / có quy tắc hoặc AI | **Chưa hỗ trợ** kéo-thả tự động; sao chép kết quả để nhập |
-| Nhấp chọn từ sai / sửa lỗi | Hiển thị và giải nếu phát hiện được / có quy tắc hoặc AI | **Chưa hỗ trợ** nhấp sửa tự động; sao chép kết quả để nhập |
-| Bài dựa trên audio không có transcript | Không thể nghe bằng bản này | Không tự đoán âm thanh |
+| Dropdown (vocabulary, pronunciation with visible transcript) | Yes, when options are present | Attempt, then verify selected item |
+| Text input (verb forms, short answers) | Yes | Attempt, then verify value |
+| Static word ordering | Some detection / suggestions | **Manual**; no drag/drop automation |
+| Find-and-correct text | Some detection / suggestions | **Manual**; no click-to-edit support |
+| Audio without transcript | Not supported | Not supported |
+| Unrecognized cross-origin frame | Requires host permission / selector review | Not guaranteed |
 
-Không có quyền truy cập trực tiếp iframe từ Dashboard trong JavaScript chạy ở top frame nếu iframe khác origin; vì vậy extension đăng ký **content script trong từng iframe** mà trình duyệt cấp quyền cho `learn.eltngl.com` và `*.avallain.net`. Website dùng iframe từ domain khác chưa có trong `manifest.json` thì cần cập nhật domain được phép.
+## Privacy, permissions and limitations
 
-## Quyền và bảo mật
+- **API data:** only extracted question and option fields are intentionally sent to your selected provider. No Spark cookie, authentication token or assignment URL is intentionally included in AI payloads.
+- **Secrets:** API keys are stored in `chrome.storage.local`, restricted to trusted extension contexts on supporting Chrome versions. This is **not a cryptographic vault** against a compromised device; never commit personal keys to the repository.
+- **Endpoint access:** HTTPS endpoints and local loopback services are validated; optional host permissions are requested when you save active profiles. Only choose endpoints you trust.
+- **No auto-submit by default:** you must click **Submit & next** and confirm. The separate **Move to next exercise** preference controls automatic progression after a confirmed check.
+- **No unsupported promises:** JavaScript-triggered click events may not reproduce every interaction of the learning platform. A live account/browser test is needed before relying on the new workflow.
 
-- `activeTab`: tương tác với tab người dùng chủ động mở.
-- `webNavigation`: liệt kê frame trong tab hiện tại.
-- `scripting`: khởi tạo content script cho frame khi cần.
-- `storage`: giữ cài đặt, kể cả API key (chỉ khi bạn nhập).
-- Host `learn.eltngl.com`, `*.avallain.net`: đọc phần bài tập trong các iframe này.
-- Host `api.openai.com`: tương thích cấu hình OpenAI cũ.
-- `optional_host_permissions` cho `https://*/*`, `http://localhost/*`, `http://127.0.0.1/*`: Chrome chỉ cấp quyền đến endpoint bạn chủ động lưu khi bật API.
-- Khóa API được giới hạn truy cập trong `TRUSTED_CONTEXTS` của extension để content scripts không đọc trực tiếp qua `chrome.storage.local` (trên Chrome hỗ trợ tính năng này).
+## Project structure
 
-API key được lưu bằng `chrome.storage.local`, không hard-code vào tiện ích, nhưng **không phải kho bí mật bảo mật tuyệt đối** trên thiết bị hoặc profile Chrome bị xâm phạm. Không chia sẻ bản extension đã cấu hình API key với người khác. Không có dịch vụ backend riêng. Mã trang học tập được coi là dữ liệu, không phải chỉ dẫn tin cậy.
+```text
+spark-study-assistant/
+├── popup.html / popup.js        # Compact exercise workflow
+├── options.html / options.js    # AI profiles, language, theme, workflow
+├── i18n.js                      # English, Vietnamese, 简体中文, 繁體中文
+├── styles.css                   # Shared design tokens & responsive styling
+├── content.js                   # Per-frame extraction, fill, check & next
+├── background.js                # AI requests, safe provider fallback
+├── providers.js / solver.js     # Profiles, model comparison, legacy rules
+├── _locales/                    # Chrome extension metadata localization
+├── docs/                        # Design and safe DOM evidence guides
+└── tests/                       # Node built-in test runner
+```
 
-## Phát triển và kiểm thử
+Run the tests:
 
-- `manifest.json`: khai báo extension MV3.
-- `content.js`: quét phần bài tập và hỗ trợ điền, chạy trên iframe.
-- `popup.html`, `popup.js`, `styles.css`: popup thiết kế theo quy trình, hiển thị câu hỏi dạng accordion và token màu sáng/tối.
-- `options.html`, `options.js`: trang Settings responsive, quản lý nhiều cấu hình API, cấp quyền host theo yêu cầu.
-- `background.js`: gửi yêu cầu đến nhiều API tương thích, xử lý lỗi và so sánh kết quả.
-- `providers.js`: preset, schema, chuẩn hóa cấu hình, xác thực URL/đáp án và quy tắc đồng thuận.
-- `solver.js`: bộ giải theo quy tắc offline.
-- `tests/*.test.js`: kiểm thử logic và hợp đồng UI, chạy `node --test tests/*.test.js`.
+```bash
+node --test tests/*.test.js
+```
 
-### Giới hạn thực tế
+There is no telemetry or additional remote UI runtime. The legacy offline research is archived in [`docs/OFFLINE_RESEARCH.md`](docs/OFFLINE_RESEARCH.md); no new offline packages or model weights were installed.
 
-Đây là phiên bản đầu tiên dựa trên các ví dụ HTML đã cung cấp. Không thể đảm bảo trang đã xử lý các sự kiện nhấp được tạo từ JavaScript: nếu `setDropdown` không xác nhận được lựa chọn, popup sẽ báo **chưa xác minh**. Tương tự, bộ kiểm thử offline không thay cho thử trên bài thật đã đăng nhập. Khi Spark thay giao diện, các selector có thể cần cập nhật.
+---
 
-Không sử dụng extension để trích xuất cookie, token học tập hay vượt cơ chế kiểm soát quyền truy cập của website.
+<div align="center">
+
+**Built for reviewable answers, not silent clicks.**
+
+[Tiếng Việt →](README.vi.md) · [UI design decisions](docs/UI_DESIGN.md) · [Automation limitations](docs/AUTOMATION_DISCOVERY.md)
+
+<sub>Independent open-source helper. Not affiliated with or endorsed by National Geographic Learning or Spark.</sub>
+
+</div>

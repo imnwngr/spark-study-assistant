@@ -80,6 +80,8 @@
     return settings.profiles.filter(p=>p.enabled);
   }
   function messages(payload) {
+    const explanationLanguages = {en:'English',vi:'Vietnamese','zh-CN':'Simplified Chinese','zh-TW':'Traditional Chinese'};
+    const explanationLanguage = explanationLanguages[payload?.uiLanguage] || 'English';
     return [
       {role:'system',content:[
         'You are a careful English grammar, vocabulary and pronunciation exercise assistant.',
@@ -91,7 +93,7 @@
         'For order write the complete grammatical sentence without adding or omitting words.',
         'For correction give ONLY the replacement word or phrase.',
         'Never claim to listen to audio; infer phonetics only if a printed transcript is provided.',
-        'Keep explanations short in Vietnamese.'
+        `Keep explanations short in ${explanationLanguage}.`
       ].join(' ')},
       {role:'user',content:JSON.stringify({title:payload.title,questions:payload.questions})}
     ];

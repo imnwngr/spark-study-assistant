@@ -1,6 +1,8 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = {tabId:null,frameId:null,questions:[],title:'',answers:new Map(), solved:false};
+const I=SparkI18n;
+const t=(key,vars)=>I.t(key,vars);
+const state = {tabId:null,frameId:null,questions:[],title:'',answers:new Map(), solved:false,lastApplyVerified:false,submitting:false};
 const normalized = s=>String(s||'').normalize('NFKC').toLowerCase().trim().replace(/\s+/g,' ');
 function status(message,type='normal') {
   const container=$('status');
@@ -30,37 +32,37 @@ async function sendFrame(frameId,message) {
 }
 async function scanPage() {
   $('scan').disabled=true;
-  state.questions=[];state.answers=new Map();state.solved=false;
+  state.questions=[];state.answers=new Map();state.solved=false;state.lastApplyVerified=false;$('submitNext').disabled=true;
   $('results').hidden=true;
   document.body.classList.remove('has-results');
   $('emptyState').hidden=false;
   progress('scan');
   $('fillReport').textContent='';
-  status('Đang tìm bài tập trong các iframe…');
+  status(t('scanning'));
   try {
     const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
-    if (!tab?.id || !/^https:\/\/learn\.eltngl\.com\//.test(tab.url||'')) throw new Error('Hãy mở trang learn.eltngl.com chứa bài tập trước.');
+    if (!tab?.id || !/^https:\/\/learn\.eltngl\.com\//.test(tab.url||'')) throw new Error(t('needSpark'));
     state.tabId=tab.id;
     const frames = await chrome.webNavigation.getAllFrames({tabId:tab.id});
     const targets=frames?.length?frames.map(f=>f.frameId):[0];
     const responses=await Promise.all(targets.map(async frameId=>({frameId,response:await sendFrame(frameId,{type:'SPARK_SCAN'})})));
     const candidates=responses.filter(x=>x.response?.ok && x.response.result?.questions?.length);
-    if(!candidates.length) throw new Error('Không tìm thấy bài tập. Hãy chờ bài tải xong, bấm quét lại hoặc tải lại trang.');
+    if(!candidates.length) throw new Error(t('noExercise'));
     candidates.sort((a,b)=>b.response.result.questions.length-a.response.result.questions.length);
     const selected=candidates[0];
     state.frameId=selected.frameId;
     state.title=selected.response.result.title;
     state.questions=selected.response.result.questions;
-    state.answers=new Map();state.solved=false;
+    state.answers=new Map();state.solved=false;state.lastApplyVerified=false;$('submitNext').disabled=true;
     $('title').textContent=state.title;
-    $('count').textContent=`${state.questions.length} ô/câu được nhận diện · frame ${state.frameId}`;
+    $('count').textContent=t('count',{n:state.questions.length,frame:state.frameId});
     $('results').hidden=false;
     document.body.classList.add('has-results');
     $('emptyState').hidden=true;
     progress('solve');
     $('apply').disabled=true;
     render();
-    status('Đã đọc bài tập. Chọn “Giải bài” để tạo đáp án.','success');
+    status(t('readReady'),'success');
     return true;
   } catch(error) {status(errString(error),'error');return false;}
   finally {$('scan').disabled=false;}
@@ -74,41 +76,39 @@ function render() {
     const head=el('summary','question-head');
     head.append(el('span','question-index',String(index+1).padStart(2,'0')));
     const main=el('span','question-headline');
-    main.append(el('span','question-label',`Câu ${index+1}`));
+    main.append(el('span','question-label',`${t('question')} ${index+1}`));
     const short=(q.localContext||q.context||'').replace(/\s+/g,' ').trim();
     main.append(el('span','question-summary',short));
     const end=el('span','question-end');
-    const badge=el('span','question-answer-badge','Đã có đáp án');badge.hidden=true;badge.id='badge-'+q.id;
+    const badge=el('span','question-answer-badge',t('answered'));badge.hidden=true;badge.id='badge-'+q.id;
     const chevron=document.createElementNS('http://www.w3.org/2000/svg','svg');
     chevron.setAttribute('class','ui-icon question-chevron');chevron.setAttribute('viewBox','0 0 24 24');
     const poly=document.createElementNS('http://www.w3.org/2000/svg','path');poly.setAttribute('d','m6 9 6 6 6-6');chevron.append(poly);
     end.append(badge,chevron);head.append(main,end);card.append(head);
     const body=el('div','question-body');
-    body.append(el('span','question-kind',{
-      dropdown:'CHỌN ĐÁP ÁN',text:'ĐIỀN TỪ',order:'SẮP XẾP',correction:'SỬA LỖI',manual:'NỘI DUNG'
-    }[q.kind]||'BÀI TẬP'));
+    body.append(el('span','question-kind',t({dropdown:'kindDropdown',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
     body.append(el('p','question-text',q.localContext||q.context));
-    if(q.options?.length) body.append(el('p','options-preview',`Lựa chọn: ${q.options.join(' · ')}`));
+    if(q.options?.length) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.options.join(' · ')}`));
     const line=el('div','answer-line');
-    const lbl=el('label','','Đáp án');lbl.setAttribute('for','answer-'+q.id);
+    const lbl=el('label','',t('answer'));lbl.setAttribute('for','answer-'+q.id);
     let input;
     if(q.options?.length) {
       input=el('select','answer-input');
-      const blank=el('option','','— Chọn đáp án —');blank.value=''; input.append(blank);
+      const blank=el('option','',`— ${t('chooseAnswer')} —`);blank.value=''; input.append(blank);
       for(const opt of q.options){const optEl=el('option','',opt);optEl.value=opt;input.append(optEl);}
     } else {
-      input=el('input','answer-input');input.type='text';input.placeholder='Giải bài hoặc tự nhập';
+      input=el('input','answer-input');input.type='text';input.placeholder=t('answerPlaceholder');
     }
     input.id='answer-'+q.id;
     input.addEventListener('input',()=>{
       const prev=state.answers.get(q.id)||{};
-      state.answers.set(q.id,{...prev,id:q.id,answer:input.value,confidence:'high',source:'user',explanation:'Đã chỉnh sửa thủ công.'});
-      updateCardState(q.id,input.value);
+      state.answers.set(q.id,{...prev,id:q.id,answer:input.value,confidence:'high',source:'user',explanation:t('manuallyEdited')});
+      updateCardState(q.id,input.value);state.lastApplyVerified=false;$('submitNext').disabled=true;
       $('apply').disabled=false;
     });
     line.append(lbl,input);body.append(line);
     const hint=el('p','explanation');hint.id='explain-'+q.id;
-    if(!q.applyable) hint.textContent='Dạng này cần sao chép và thao tác thủ công trên Spark.';
+    if(!q.applyable) hint.textContent=t('manualOnly');
     const alternatives=el('div','alternatives');alternatives.id='alts-'+q.id;
     body.append(hint,alternatives);card.append(body);root.append(card);
   }
@@ -127,19 +127,19 @@ function updateAnswers() {
     if (!input || !note || !alts) continue;
     input.value=ans?.answer||'';
     updateCardState(q.id,ans?.answer);
-    let label=ans?.source==='ai'?(ans.provider||'AI'):ans?.source==='compare'?'So sánh':ans?.source==='user'?'Bạn chọn':'Offline';
-    note.textContent=ans ? `${label} · ${ans.confidence||'low'} · ${ans.explanation||''}` : 'Chưa có đáp án.';
-    if(!q.applyable) note.textContent+=' Không hỗ trợ tự điền dạng này.';
+    let label=ans?.source==='ai'?(ans.provider||'AI'):ans?.source==='compare'?t('compareAnswer'):ans?.source==='user'?t('yourChoice'):t('rules');
+    note.textContent=ans ? `${label} · ${ans.confidence||'low'} · ${ans.explanation||''}` : t('noAnswer');
+    if(!q.applyable) note.textContent+=' '+t('notAutoFill');
     if(ans && (!ans.answer || (ans.alternatives?.length>1))) $('card-'+q.id).open=true;
     alts.replaceChildren();
     for(const alternative of ans?.alternatives||[]) {
       const button=el('button','alt-button',`${alternative.answer} (${alternative.providers.join(', ')})`);
       button.type='button';
-      button.title='Chọn phương án này (vẫn cần kiểm tra trước khi điền)';
+      button.title=t('chooseAlternative');
       button.addEventListener('click',()=>{
         state.answers.set(q.id,{id:q.id,answer:alternative.answer,confidence:'high',source:'user',
-          explanation:'Bạn đã chọn phương án sau khi so sánh kết quả.',alternatives:ans.alternatives});
-        updateAnswers();$('apply').disabled=false;
+          explanation:t('choiceSelected'),alternatives:ans.alternatives});
+        updateAnswers();$('apply').disabled=false;state.lastApplyVerified=false;$('submitNext').disabled=true;
       });
       alts.append(button);
     }
@@ -147,20 +147,21 @@ function updateAnswers() {
 }
 async function solve() {
   if(!state.questions.length)return;
-  $('solve').disabled=true;progress('solve');status('Đang phân tích và giải bài…');
+  state.lastApplyVerified=false;$('submitNext').disabled=true;
+  $('solve').disabled=true;progress('solve');status(t('solving'));
   try {
-    const payload={title:state.title,questions:state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
+    const payload={title:state.title,uiLanguage:I.language,questions:state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
       localContext:q.localContext||'',options:q.options,rubric:q.rubric,hint:q.hint,before:q.before,after:q.after}))};
     const response=await chrome.runtime.sendMessage({type:'SPARK_SOLVE',payload});
-    if(!response?.ok) throw new Error(response?.error||'Không gọi được bộ giải.');
+    if(!response?.ok) throw new Error(response?.error||t('solveFailed'));
     for(const ans of response.result.answers||[]) state.answers.set(ans.id,ans);
     state.solved=true;
     updateAnswers();
     const complete=(response.result.answers||[]).filter(a=>a.answer).length;
     $('apply').disabled=complete===0;
     if(complete>0)progress('apply');
-    const label=response.result.mode==='compare'?'So sánh API':response.result.mode==='ai'?`AI (${response.result.provider||'API'})`:'Offline';
-    status(`${label}: Có đáp án đủ đồng thuận ${complete}/${state.questions.length} câu.`+(response.result.warning?' '+response.result.warning:''), complete?'success':'normal');
+    const label=response.result.mode==='compare'?t('compareMode'):response.result.mode==='ai'?`AI (${response.result.provider||'API'})`:t('rules');
+    status(t('readyCount',{mode:label,n:complete,total:state.questions.length})+(response.result.warning?' '+response.result.warning:''), complete?'success':'normal');
     return complete > 0;
   }catch(error){status(errString(error),'error');return false;}
   finally{$('solve').disabled=false;}
@@ -172,20 +173,21 @@ function answerText() {
     lines.push(`${i+1}. ${q.context}`);
     if(q.options?.length)lines.push(`Options: ${q.options.join(' | ')}`);
     const answer=state.answers.get(q.id)?.answer||'';
-    lines.push(`Answer: ${answer||'[chưa có]'}`);
+    lines.push(`Answer: ${answer||t('missing')}`);
     const alts=state.answers.get(q.id)?.alternatives||[];
-    if(alts.length) lines.push('So sánh: '+alts.map(x=>`${x.answer} (${x.providers.join(', ')})`).join(' | '));
+    if(alts.length) lines.push(t('alternatives')+': '+alts.map(x=>`${x.answer} (${x.providers.join(', ')})`).join(' | '));
     lines.push('');
   }
   return lines.join('\n');
 }
 async function copyAnswers() {
   const output=answerText();
-  try{await navigator.clipboard.writeText(output);status('Đã sao chép câu hỏi và đáp án.','success');}
-  catch(error){status('Không sao chép được: '+errString(error),'error');}
+  try{await navigator.clipboard.writeText(output);status(t('copied'),'success');}
+  catch(error){status(t('copyFailed',{error:errString(error)}),'error');}
 }
 async function applyAnswers() {
   if(!state.questions.length)return;
+  state.lastApplyVerified=false;$('submitNext').disabled=true;
   const answers=[];
   let missing=0;
   for(const q of state.questions){
@@ -196,17 +198,20 @@ async function applyAnswers() {
     if(q.options?.length && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
     answers.push({id:q.id,answer});
   }
-  if(!answers.length){status('Chưa có đáp án đủ tin cậy để điền.','error');return;}
-  $('apply').disabled=true;progress('apply');status('Đang điền vào bài tập…');
+  if(!answers.length){status(t('notReady'),'error');return;}
+  $('apply').disabled=true;progress('apply');status(t('filling'));
   try{
     const response=await sendFrame(state.frameId,{type:'SPARK_APPLY',answers});
-    if(!response?.ok) throw new Error(response?.error||'Không gửi được lệnh điền.');
+    if(!response?.ok) throw new Error(response?.error||t('fillFailed'));
     const results=response.result;
     const filled=results.filter(x=>x.status==='filled').length;
     const manual=results.filter(x=>x.status==='manual').length;
     const uncertain=results.filter(x=>x.status==='uncertain').length;
-    $('fillReport').textContent=`Đã xác nhận: ${filled}. Cần nhập thủ công: ${manual}. Chưa xác minh: ${uncertain}. Bỏ qua: ${missing + results.filter(x=>x.status==='skipped').length}.`;
-    status(`Đã thao tác ${results.length} đáp án. Hãy kiểm tra trên trang trước khi nộp.`,filled?'success':'normal');
+    $('fillReport').textContent=t('fillReport',{filled,manual,uncertain,skipped:missing+results.filter(x=>x.status==='skipped').length});
+    status(t('fillDone',{n:results.length}),filled?'success':'normal');
+    // Require a verified page-level apply, including all recognised gaps, before enabling submit.
+    state.lastApplyVerified=missing===0 && results.length===state.questions.length && results.every(x=>x.status==='filled');
+    $('submitNext').disabled=!state.lastApplyVerified;
     if(filled) { document.querySelector('[data-phase="apply"]')?.classList.add('is-done'); document.querySelector('[data-phase="apply"]')?.classList.remove('is-current'); }
   }catch(error){status(errString(error),'error');}
   finally{$('apply').disabled=false;}
@@ -219,6 +224,28 @@ async function autoSolveAndFill() {
     await applyAnswers();
   } finally {$('auto').disabled=false;}
 }
+
+async function submitAndNext(){
+  if(state.submitting || !state.lastApplyVerified || !state.questions.length){status(t('autoNotApplied'),'error');return;}
+  if(!confirm(t('submitAsk')))return;
+  state.submitting=true;$('submitNext').disabled=true;
+  status(t('submitCheck'));
+  try{
+    const response=await sendFrame(state.frameId,{type:'SPARK_SUBMIT_NEXT',
+      expected:state.questions.length,goNext:state.autoNext===true});
+    if(!response?.ok)throw new Error(response?.error||t('submitControlMissing'));
+    const result=response.result||{};
+    if(!result.submitted){status(t('submitBlocked',{reason:t(result.reason||'submitWarning')}),'error');return;}
+    if(result.nextClicked)status(t('submitNextDone'),'success');
+    else if(result.confirmed)status(t('submitNoNext'),'success');
+    else status(t('submitWarning'),'normal');
+    // Never permit a second submission from this stale scan.
+    state.lastApplyVerified=false;
+  }catch(error){status(errString(error),'error');}
+  finally{state.submitting=false;$('submitNext').disabled=true;}
+}
+$('submitNext').addEventListener('click',submitAndNext);
+
 $('auto').addEventListener('click',autoSolveAndFill);
 $('settings').addEventListener('click',()=>chrome.runtime.openOptionsPage());
 $('scan').addEventListener('click',scanPage);
@@ -229,8 +256,14 @@ async function showMode(){
   try {
     const saved=await chrome.storage.local.get(['aiMode']);
     const mode=saved.aiMode;
-    $('modeLabel').textContent={single:'Chế độ một AI',compare:'Chế độ so sánh AI',offline:'Bộ giải quy tắc'}[mode]||'Sẵn sàng hỗ trợ';
+    $('modeLabel').textContent={single:t('singleMode'),compare:t('compareMode'),offline:t('offlineMode')}[mode]||t('ready');
   }catch{}
 }
-showMode();
-scanPage();
+async function initialize(){
+  try {await I.load();const stored=await chrome.storage.local.get(['autoNext']);state.autoNext=stored.autoNext!==false;}catch{}
+  await showMode();await scanPage();
+}
+chrome.storage.onChanged?.addListener((changes,area)=>{if(area==='local'&&(changes.uiLanguage||changes.uiTheme)){
+  I.load().then(()=>{showMode();if(state.questions.length){render();updateAnswers();$('count').textContent=t('count',{n:state.questions.length,frame:state.frameId});}}).catch(()=>{});
+}});
+initialize();

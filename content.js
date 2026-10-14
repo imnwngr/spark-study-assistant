@@ -2,7 +2,7 @@
   'use strict';
   if (globalThis.__sparkStudyAssistantLoaded) return;
   globalThis.__sparkStudyAssistantLoaded = true;
-  let lastScan = { title: '', questions: [], refs: new Map() };
+  let lastScan = { title: '', questions: [], refs: new Map(), applied:new Map(), submitted:false };
   const tidy = (v) => String(v || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   const normalized = (v) => tidy(v).normalize('NFKC').toLowerCase().replace(/[’]/g, "'");
 
@@ -97,7 +97,7 @@
           options:[], rubric, hint:'',before:'',after:'',block:b + 1,position:1, applyable:false});
       }
     }
-    lastScan = {title,questions,refs};
+    lastScan = {title,questions,refs,applied:new Map(),submitted:false};
     return {title,questions,frameUrl:location.origin + location.pathname, hasExercise:questions.length > 0};
   }
   function setText(el, value) {
@@ -149,18 +149,85 @@
       const id = response.id;
       const value = tidy(response.answer);
       const found = lastScan.refs.get(id);
-      if (!value) {results.push({id,status:'skipped',detail:'Không có đáp án.'});continue;}
-      if (!found) {results.push({id,status:'manual',detail:'Dạng này chưa hỗ trợ tương tác tự động; dùng đáp án xem trước.'});continue;}
-      if (!document.contains(found.node)) {results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
+      if (!value) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Không có đáp án.'});continue;}
+      if (!found) {lastScan.applied.delete(id);results.push({id,status:'manual',detail:'Dạng này chưa hỗ trợ tương tác tự động; dùng đáp án xem trước.'});continue;}
+      if (!document.contains(found.node)) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
       try {
-        if (found.kind === 'dropdown') results.push({id,...await setDropdown(found.node,value)});
-        else results.push({id,status:setText(found.node,value)?'filled':'uncertain',detail:'Đã cập nhật ô nhập.'});
-      } catch(error) {results.push({id,status:'skipped',detail:String(error?.message || error)});}
+        let outcome;
+        if (found.kind === 'dropdown') outcome=await setDropdown(found.node,value);
+        else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
+        if(outcome.status==='filled') lastScan.applied.set(id,value);else lastScan.applied.delete(id);
+        results.push({id,...outcome});
+      } catch(error) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:String(error?.message || error)});}
     }
     return results;
   }
+  // Only Spark's known scoring control is a submission candidate. Never guess at a
+  // generic "submit" button, which might belong to a different iframe or LMS form.
+  function actionable(node) {
+    if (!node || !node.isConnected || node.disabled || node.getAttribute('aria-disabled') === 'true') return false;
+    if (node.closest('[hidden],[inert]') || node.classList.contains('inactive_button')) return false;
+    const css=getComputedStyle(node);
+    return css.display!=='none' && css.visibility!=='hidden' && node.getClientRects().length>0;
+  }
+  function checkSignal() {
+    const check=document.querySelector('[data-event="check"]');
+    const answerStates=document.querySelectorAll('.status-correct,.status-incorrect,.is-correct,.is-incorrect,.correct-answer,.incorrect-answer').length;
+    return {checkAvailable:actionable(check), answerStates};
+  }
+  async function submitNext(expected,goNext) {
+    if(lastScan.submitted)return {submitted:false,reason:'submitAlready'};
+    if(!Number.isInteger(expected)||expected!==lastScan.questions.length || !expected ||
+      lastScan.questions.some(q=>!q.applyable)||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
+      return {submitted:false,reason:'submitUnverified'};
+    }
+    // A manual change after filling invalidates the verification: re-read actual DOM values.
+    const consistent=[...lastScan.refs.entries()].every(([id,ref])=>{
+      if(!document.contains(ref.node))return false;
+      const wanted=normalized(lastScan.applied.get(id));
+      if(!wanted)return false;
+      if(ref.kind==='dropdown'){
+        if(ref.node.matches('select'))return normalized(ref.node.selectedOptions[0]?.textContent)===wanted;
+        const button=ref.node.matches('[role="combobox"]')?ref.node:ref.node.querySelector('[role="combobox"],button[data-event="toggle"]');
+        if(normalized(button?.textContent).includes(wanted))return true;
+        return optionNodes(ref.node).some(option=>normalized(option.textContent)===wanted &&
+          (option.getAttribute('aria-selected')==='true'||option.classList.contains('selected')||option.classList.contains('is-selected')));
+      }
+      return normalized(ref.node.value!==undefined?ref.node.value:ref.node.textContent)===wanted;
+    });
+    if(!consistent)return {submitted:false,reason:'submitChanged'};
+    const check=document.querySelector('[data-event="check"]');
+    if(!actionable(check))return {submitted:false,reason:'submitControlMissing'};
+    // Lock before the click to prevent double-scoring on repeated popup calls.
+    lastScan.submitted=true;
+    const before=checkSignal();
+    check.click();
+    for(let i=0;i<10;i++){
+      await wait(180);
+      const after=checkSignal();
+      if((before.checkAvailable && !after.checkAvailable) || after.answerStates>before.answerStates){
+        if(goNext){
+          // Scoring may update the toolbar asynchronously. Wait a bounded period
+          // for exactly one Next *learning-object* control, not a generic arrow.
+          for(let attempt=0;attempt<8;attempt++){
+            const candidates=[...document.querySelectorAll('[data-event="forward_lo"]')].filter(actionable);
+            if(candidates.length===1){
+              // Delay lets the success response reach the popup before Spark unloads this iframe.
+              setTimeout(()=>{if(actionable(candidates[0]))candidates[0].click();},250);
+              return {submitted:true,confirmed:true,nextClicked:true};
+            }
+            if(candidates.length>1)break; // ambiguity must never cause a click
+            await wait(150);
+          }
+        }
+        return {submitted:true,confirmed:true,nextClicked:false,reason:'nextControlMissing'};
+      }
+    }
+    return {submitted:true,confirmed:false,nextClicked:false,reason:'submitClicked'};
+  }
+
   chrome.runtime.onMessage.addListener((message,_sender,respond) => {
-    if (!message || !['SPARK_SCAN','SPARK_APPLY','SPARK_PING'].includes(message.type)) return false;
+    if (!message || !['SPARK_SCAN','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT'].includes(message.type)) return false;
     if (message.type === 'SPARK_PING') {respond({ok:true,ready:true});return false;}
     if (message.type === 'SPARK_SCAN') {
       try {respond({ok:true,result:scan()});} catch(e) {respond({ok:false,error:e.message});}
@@ -169,6 +236,11 @@
     if (message.type === 'SPARK_APPLY') {
       apply(Array.isArray(message.answers)?message.answers:[])
         .then(result=>respond({ok:true,result}),err=>respond({ok:false,error:err.message}));
+      return true;
+    }
+    if (message.type === 'SPARK_SUBMIT_NEXT') {
+      submitNext(message.expected,message.goNext===true)
+        .then(result=>respond({ok:true,result}),err=>respond({ok:false,error:String(err?.message||err)}));
       return true;
     }
     return false;

@@ -1,1 +1,8 @@
-{"appName": {"message": "Spark Study Assistant"}}
+{
+  "extName": {
+    "message": "Spark Study Assistant"
+  },
+  "extDescription": {
+    "message": "Đọc bài tập NGL Spark, so sánh đáp án AI và điền bài với giao diện đa ngôn ngữ."
+  }
+}
