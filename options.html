@@ -1,52 +1,82 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cài đặt – Spark Study Assistant</title><link rel="stylesheet" href="styles.css"></head>
-<body class="options"><main class="settings-page">
-  <h1>Spark Study Assistant <span class="version">v0.2.0</span></h1>
-  <p class="lead">Dùng nhiều API kiểu OpenAI Chat Completions, tự sửa endpoint và model, hoặc so sánh đáp án giữa nhiều mô hình. Không có API vẫn dùng bộ quy tắc offline hiện tại.</p>
-  <div class="settings-card">
-    <h2>Chế độ giải bài</h2>
-    <label for="aiMode" class="field-label">Chọn cách giải</label>
-    <select id="aiMode" class="settings-input">
-      <option value="offline">Offline – chỉ dùng quy tắc tích hợp (không gửi dữ liệu)</option>
-      <option value="single">Một API – dùng cấu hình chính</option>
-      <option value="compare">So sánh – gọi các cấu hình được đánh dấu</option>
-    </select>
-    <p class="small">So sánh sẽ gọi nhiều API cho mỗi lần giải và có thể phát sinh chi phí ở từng nhà cung cấp. Chỉ tự điền khi ít nhất hai mô hình trả về cùng một đáp án; đáp án bất đồng cần chọn thủ công.</p>
-    <label for="activeProfile" class="field-label">Cấu hình chính (chế độ một API)</label>
-    <select id="activeProfile" class="settings-input"></select>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Cài đặt – Spark Study Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="options">
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="ic-sliders" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2"/><circle cx="16" cy="17" r="2"/></symbol>
+    <symbol id="ic-cube" viewBox="0 0 24 24"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Zm-9 5 9 5 9-5m-9 5v10"/></symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 1 1 8 0v3"/></symbol>
+    <symbol id="ic-arrow" viewBox="0 0 24 24"><path d="m5 12 14 0m-6-6 6 6-6 6"/></symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="ic-spark" viewBox="0 0 24 24"><path d="m12 2 2 7 7 3-7 2-2 7-2-7-7-2 7-3 2-7"/></symbol>
+  </svg>
+  <div class="settings-layout">
+    <aside class="settings-sidebar" aria-label="Điều hướng cài đặt">
+      <div class="sidebar-brand"><img src="icons/icon48.png" width="42" height="42" alt=""><div><strong>Spark Assistant</strong><small>Settings <span>v0.3</span></small></div></div>
+      <p class="sidebar-caption">TÙY CHỈNH</p>
+      <nav class="settings-nav" aria-label="Các mục cài đặt">
+        <a href="#general" class="nav-link is-active" data-nav="general"><svg class="ui-icon"><use href="#ic-sliders"/></svg><span>Tổng quan</span></a>
+        <a href="#providers" class="nav-link" data-nav="providers"><svg class="ui-icon"><use href="#ic-cube"/></svg><span>Nhà cung cấp AI</span></a>
+        <a href="#privacy" class="nav-link" data-nav="privacy"><svg class="ui-icon"><use href="#ic-lock"/></svg><span>Quyền riêng tư</span></a>
+      </nav>
+      <div class="sidebar-bottom"><span class="sidebar-indicator"></span><div><strong>Local-first settings</strong><small>Cấu hình lưu trong Chrome</small></div></div>
+    </aside>
+    <main class="settings-page">
+      <header class="settings-topbar"><span>SPARK / SETTINGS</span><span class="topbar-version">Version 0.3.0</span></header>
+      <div class="settings-content">
+        <section class="settings-intro"><span class="section-kicker">CÁ NHÂN HÓA</span><h1>Cài đặt <span>của bạn.</span></h1><p>Chọn cách AI hỗ trợ, quản lý các kết nối và kiểm soát dữ liệu. Mọi thứ được sắp xếp để bạn tập trung vào việc học.</p></section>
+
+        <section id="general" class="settings-section" aria-labelledby="generalTitle">
+          <div class="section-head"><div><span class="section-kicker">01 / CHẾ ĐỘ</span><h2 id="generalTitle">Cách giải bài</h2><p>Chọn cách extension tạo lời giải cho bài tập Spark.</p></div><span class="section-symbol"><svg class="ui-icon"><use href="#ic-sliders"/></svg></span></div>
+          <div class="settings-card mode-card">
+            <fieldset class="mode-grid" id="aiModeChoices"><legend class="sr-only">Chế độ giải bài</legend>
+              <label class="mode-choice"><input type="radio" name="aiMode" value="single"><span class="mode-choice-content"><span class="mode-icon"><svg class="ui-icon"><use href="#ic-spark"/></svg></span><strong>Một AI</strong><small>Gọi cấu hình API chính để giải.</small><span class="mode-check"><svg class="ui-icon"><use href="#ic-check"/></svg></span></span></label>
+              <label class="mode-choice"><input type="radio" name="aiMode" value="compare"><span class="mode-choice-content"><span class="mode-icon"><svg class="ui-icon"><use href="#ic-cube"/></svg></span><strong>So sánh AI</strong><small>Đối chiếu kết quả từ nhiều model.</small><span class="mode-check"><svg class="ui-icon"><use href="#ic-check"/></svg></span></span></label>
+              <label class="mode-choice"><input type="radio" name="aiMode" value="offline"><span class="mode-choice-content"><span class="mode-icon"><svg class="ui-icon"><use href="#ic-lock"/></svg></span><strong>Quy tắc cũ</strong><small>Không gọi API, độ bao phủ giới hạn.</small><span class="mode-check"><svg class="ui-icon"><use href="#ic-check"/></svg></span></span></label>
+            </fieldset>
+            <div class="settings-subfield" id="primaryProfileField"><label class="field-label" for="activeProfile">Cấu hình API chính</label><select id="activeProfile" class="settings-input"></select><p class="field-help">Cấu hình này được dùng trong chế độ Một AI.</p></div>
+            <p class="context-note" id="compareNote" hidden>Chế độ so sánh sẽ gọi những cấu hình được bật phía dưới. Việc gọi nhiều API có thể phát sinh thêm chi phí; kết quả bất đồng cần bạn chọn lại.</p>
+            <p class="context-note" id="offlineNote" hidden>Bộ quy tắc offline hiện tại được giữ lại để tương thích. Chúng tôi chưa bổ sung mô hình hoặc thư viện offline mới.</p>
+          </div>
+        </section>
+
+        <section id="providers" class="settings-section" aria-labelledby="providersTitle">
+          <div class="section-head"><div><span class="section-kicker">02 / KẾT NỐI</span><h2 id="providersTitle">Nhà cung cấp AI <span id="profileCount" class="section-count"></span></h2><p>Lưu nhiều cấu hình API, model và máy chủ độc lập.</p></div><span class="section-symbol"><svg class="ui-icon"><use href="#ic-cube"/></svg></span></div>
+          <div class="provider-layout">
+            <div class="settings-card profile-pane">
+              <div class="pane-heading"><strong>API đã thêm</strong><span class="pane-subtitle">Chọn để chỉnh sửa</span></div>
+              <div id="profilesList" class="profile-list" aria-label="Các cấu hình API"></div>
+              <div class="add-provider"><label class="field-label" for="newProvider">Thêm nhà cung cấp</label><div class="add-provider-controls"><select id="newProvider" class="settings-input" aria-label="Chọn nhà cung cấp mới"></select><button id="addProfile" class="button button-add" type="button" aria-label="Thêm API"><svg class="ui-icon"><use href="#ic-plus"/></svg><span>Thêm</span></button></div></div>
+            </div>
+            <div class="settings-card editor-pane" id="profileEditor" hidden>
+              <div class="editor-head"><div><span class="section-kicker">CẤU HÌNH ĐÃ CHỌN</span><h3>Chỉnh sửa API</h3></div><button id="removeProfile" class="button button-danger" type="button">Xóa</button></div>
+              <div class="field-grid"><div><label class="field-label" for="profileName">Tên hiển thị</label><input id="profileName" class="settings-input" maxlength="80" placeholder="Ví dụ: Gemini – nhanh"></div><div><label class="field-label" for="provider">Nhà cung cấp</label><select id="provider" class="settings-input"></select></div></div>
+              <label class="field-label" for="model">Model ID</label><input id="model" class="settings-input" autocomplete="off" spellcheck="false" placeholder="Model do nhà cung cấp hỗ trợ">
+              <label class="field-label" for="endpoint">Địa chỉ API (endpoint)</label><input id="endpoint" class="settings-input code-input" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/v1/chat/completions"><p class="field-help">Đầu cuối OpenAI-compatible, kết thúc bằng <code>/chat/completions</code>.</p>
+              <label class="field-label" for="apiKey">API key <span class="field-optional">— không cần nếu chạy Ollama local</span></label><div class="secret-field"><input id="apiKey" class="settings-input code-input" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập khóa riêng của API này"><button id="toggleKey" class="button button-reveal" type="button" aria-label="Hiện API key">Hiện</button></div>
+              <label class="checkline" for="enabled"><input type="checkbox" id="enabled"><span><strong>Tham gia so sánh</strong><small>Sử dụng model này khi bật chế độ So sánh AI.</small></span><span class="ios-switch" aria-hidden="true"></span></label>
+              <details class="advanced-settings"><summary>Tùy chọn nâng cao <span class="detail-arrow">⌄</span></summary><div class="advanced-inner"><label class="field-label" for="responseFormat">Định dạng kết quả</label><select id="responseFormat" class="settings-input"><option value="json_schema">JSON Schema – model hỗ trợ</option><option value="json_object">JSON Object – API tương thích</option><option value="prompt_only">Prompt only – tương thích rộng hơn</option></select><p class="field-help">Nếu API trả lỗi vì <code>response_format</code>, thử Prompt only. Định dạng Anthropic native chưa được hỗ trợ.</p></div></details>
+            </div>
+          </div>
+        </section>
+
+        <section id="privacy" class="settings-section" aria-labelledby="privacyTitle">
+          <div class="section-head"><div><span class="section-kicker">03 / MINH BẠCH</span><h2 id="privacyTitle">Quyền riêng tư</h2><p>Bạn kiểm soát nơi dữ liệu bài tập được gửi đến.</p></div><span class="section-symbol"><svg class="ui-icon"><use href="#ic-lock"/></svg></span></div>
+          <div class="settings-card privacy-card"><div class="privacy-feature"><div class="privacy-icon"><svg class="ui-icon"><use href="#ic-lock"/></svg></div><div><strong>Chỉ gửi dữ liệu bài tập</strong><p>Khi dùng API, extension chỉ gửi nội dung câu hỏi và các lựa chọn cần giải đến máy chủ đã cấu hình, không chủ động gửi cookie, token đăng nhập Spark hoặc URL bài học.</p></div></div><div class="privacy-feature"><div class="privacy-icon"><svg class="ui-icon"><use href="#ic-cube"/></svg></div><div><strong>API key ở trong Chrome</strong><p>Khóa lưu bằng <code>chrome.storage.local</code>, không đồng bộ lên GitHub. Đây không phải kho bí mật bảo mật tuyệt đối trên thiết bị bị xâm phạm.</p></div></div><div class="privacy-feature"><div class="privacy-icon"><svg class="ui-icon"><use href="#ic-check"/></svg></div><div><strong>Không tự nộp bài</strong><p>Bạn luôn cần kiểm tra kết quả trước khi nhấn Check Answers hoặc Submit trên Spark. Endpoint tùy chỉnh nên là dịch vụ mà bạn tin tưởng.</p></div></div></div>
+        </section>
+      </div>
+      <div class="settings-savebar"><div class="save-state"><span class="save-state-dot" id="saveDot"></span><div><strong id="saveState">Cấu hình hiện tại</strong><small>Lưu để áp dụng và cấp quyền máy chủ.</small></div></div><button id="save" class="button button-primary" type="button">Lưu thay đổi <svg class="ui-icon"><use href="#ic-arrow"/></svg></button></div>
+      <p id="message" role="status" aria-live="polite" class="status settings-toast" hidden></p>
+    </main>
   </div>
-  <div class="settings-card">
-    <h2>Danh sách cấu hình API <span id="profileCount" class="version"></span></h2>
-    <p class="small">Có thể lưu tối đa 8 cấu hình, gồm OpenAI, OpenRouter, Groq, DeepSeek, Gemini (giao diện OpenAI-compatible), Ollama chạy trên máy hoặc endpoint tự nhập. Tên model và endpoint đều chỉnh được.</p>
-    <div class="field-row profile-create">
-      <select id="newProvider" class="settings-input" aria-label="Nhà cung cấp mới"></select>
-      <button id="addProfile" class="secondary" type="button">+ Thêm API</button>
-    </div>
-    <div id="profilesList" class="profile-list" aria-label="Các cấu hình đã thêm"></div>
-    <div id="profileEditor" hidden>
-      <div class="editor-head"><h3>Chỉnh sửa cấu hình</h3><button id="removeProfile" type="button" class="danger">Xóa cấu hình</button></div>
-      <label for="profileName" class="field-label">Tên hiển thị</label><input id="profileName" class="settings-input" maxlength="80">
-      <label for="provider" class="field-label">Nhà cung cấp / mẫu mặc định</label><select id="provider" class="settings-input"></select>
-      <label for="endpoint" class="field-label">Endpoint đầy đủ (URL kết thúc bằng /chat/completions)</label><input id="endpoint" class="settings-input" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/v1/chat/completions">
-      <label for="model" class="field-label">Model ID</label><input id="model" class="settings-input" autocomplete="off" spellcheck="false" placeholder="Tên model do nhà cung cấp hỗ trợ">
-      <label for="apiKey" class="field-label">API key (để trống nếu dùng Ollama local)</label>
-      <div class="field-row"><input id="apiKey" class="settings-input" type="password" autocomplete="off" spellcheck="false" placeholder="Nhập khóa của cấu hình này"><button id="toggleKey" class="secondary" type="button">Hiện</button></div>
-      <label for="responseFormat" class="field-label">Định dạng đầu ra</label>
-      <select id="responseFormat" class="settings-input">
-        <option value="json_schema">JSON Schema nghiêm ngặt (OpenAI và model hỗ trợ)</option>
-        <option value="json_object">JSON Object (nhiều API tương thích)</option>
-        <option value="prompt_only">Chỉ hướng dẫn qua prompt (tương thích rộng hơn)</option>
-      </select>
-      <label class="checkline" for="enabled"><input type="checkbox" id="enabled"><span><strong>Tham gia so sánh</strong><small>Bật để gọi cấu hình này khi chọn “So sánh”.</small></span></label>
-      <p class="small">Lưu ý: không phải mọi dịch vụ đều tương thích hoàn toàn với OpenAI API. Endpoint này chỉ hỗ trợ dạng <code>POST /chat/completions</code>; API Anthropic native hoặc định dạng khác chưa hỗ trợ.</p>
-    </div>
-    <div class="actions"><button id="save" class="primary">Lưu cài đặt và cấp quyền endpoint</button></div>
-    <p id="message" role="status" class="status"></p>
-  </div>
-  <div class="settings-card"><h2>Riêng tư và giới hạn</h2>
-    <p>Extension chỉ gửi cấu trúc câu hỏi, đáp án lựa chọn đến endpoint bạn đã cấu hình khi bật API. Không gửi cookie, token đăng nhập Spark hoặc URL của trang học. Khóa API nằm trong <code>chrome.storage.local</code> của Chrome, không đồng bộ với GitHub.</p>
-    <p><strong>Endpoint tùy chỉnh là máy chủ do bạn chọn.</strong> Khi dùng, nội dung bài tập và API key của cấu hình đó sẽ được gửi tới máy chủ này. Chỉ sử dụng dịch vụ bạn tin tưởng. Quyền truy cập host được Chrome hỏi khi lưu cấu hình.</p>
-    <p>Dạng kéo/thả và click sửa lỗi vẫn chưa hỗ trợ tự thao tác đầy đủ; kết quả cần được kiểm tra trước khi nộp bài.</p>
-  </div>
-</main><script src="providers.js"></script><script src="options.js"></script></body></html>
+  <script src="providers.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,12 +1,76 @@
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spark Study Assistant</title><link rel="stylesheet" href="styles.css"></head>
-<body class="popup"><main>
-<header class="brand"><img src="icons/icon48.png" alt=""><div><strong>Spark Study Assistant</strong><span>Trợ lý bài tập NGL Spark</span></div><button id="settings" class="icon-button" title="Cài đặt" aria-label="Cài đặt">⚙</button></header>
-<div class="intro"><span class="step">01</span><div><strong>Quét bài tập</strong><p>Đọc nội dung từ iframe đang mở trên Spark.</p></div></div>
-<div class="actions"><button id="scan" class="secondary">Quét trang</button><button id="auto" class="primary">Giải + điền ngay</button></div>
-<div id="status" role="status" class="status">Đang chờ quét…</div>
-<section id="results" hidden><div class="section-title"><span class="step">02</span><div><strong id="title">Bài tập</strong><p id="count"></p></div></div><div id="questions" class="questions"></div>
-<div class="actions"><button id="solve" class="primary">Giải bài</button><button id="copy" class="secondary">Sao chép</button></div>
-<div class="section-title after"><span class="step">03</span><div><strong>Điền vào trang</strong><p>Chỉ điền sau khi bạn xem đáp án. Không tự nhấn Check Answers / Submit.</p></div></div>
-<button id="apply" class="wide secondary" disabled>Điền đáp án đã chọn</button><div id="fillReport" class="small"></div></section>
-<footer>Chỉ gửi câu hỏi đến những API bạn đã bật trong Cài đặt. Chế độ so sánh có thể tính phí nhiều lần; không tự nộp bài.</footer>
-</main><script src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Spark Study Assistant</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="popup">
+  <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <symbol id="icon-settings" viewBox="0 0 24 24"><path d="M12 3.4v2M12 18.6v2M20.6 12h-2M5.4 12h-2M18.1 5.9l-1.4 1.4M7.3 16.7l-1.4 1.4M18.1 18.1l-1.4-1.4M7.3 7.3 5.9 5.9"/><circle cx="12" cy="12" r="4"/></symbol>
+    <symbol id="icon-scan" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m13-5h3a2 2 0 0 1 2 2v3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3M3 12h18"/></symbol>
+    <symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 7.1L21 11l-7.1 1.9L12 20l-1.9-7.1L3 11l7.1-1.9L12 2ZM19 17l.65 2.35L22 20l-2.35.65L19 23l-.65-2.35L16 20l2.35-.65L19 17Z"/></symbol>
+    <symbol id="icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+    <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="m5 12 14 0m-6-6 6 6-6 6"/></symbol>
+    <symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="icon-book" viewBox="0 0 24 24"><path d="M12 6.5c-2-1.5-4.7-2-8-2v14c3.3 0 6 .5 8 2 2-1.5 4.7-2 8-2v-14c-3.3 0-6 .5-8 2Zm0 0v14"/></symbol>
+    <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  </svg>
+  <main class="popup-shell">
+    <header class="app-header">
+      <div class="app-identity">
+        <img src="icons/icon48.png" class="app-icon" width="42" height="42" alt="">
+        <div class="app-name-group"><strong>Spark Assistant</strong><span>Study workspace <span class="header-version">/ v0.3</span></span></div>
+      </div>
+      <button id="settings" type="button" class="icon-button" title="Mở cài đặt" aria-label="Mở cài đặt API">
+        <svg class="ui-icon"><use href="#icon-settings"/></svg>
+      </button>
+    </header>
+
+    <div class="section-overline"><span>TRỢ LÝ HỌC TẬP</span><span class="overline-dot"></span><span>NGL SPARK</span></div>
+    <section class="welcome-panel" aria-labelledby="welcomeTitle">
+      <div class="welcome-glow" aria-hidden="true"></div>
+      <div class="welcome-content">
+        <span class="eyebrow"><span class="live-dot"></span> <span id="modeLabel">Sẵn sàng hỗ trợ</span></span>
+        <h1 id="welcomeTitle">Học thông minh.<br><span>Thao tác đơn giản.</span></h1>
+        <p>Đọc bài tập, tham khảo lời giải AI và điền đáp án ngay trên trang đang mở.</p>
+        <div class="quick-actions">
+          <button id="scan" class="button button-subtle" type="button"><svg class="ui-icon"><use href="#icon-scan"/></svg> Quét bài</button>
+          <button id="auto" class="button button-primary" type="button"><svg class="ui-icon"><use href="#icon-spark"/></svg> Giải &amp; điền</button>
+        </div>
+      </div>
+    </section>
+
+    <ol class="progress-track" aria-label="Tiến trình xử lý bài" id="progressTrack">
+      <li data-phase="scan" class="progress-step is-current"><span class="progress-number">1</span><span>Đọc bài</span></li>
+      <li class="progress-divider" aria-hidden="true"></li>
+      <li data-phase="solve" class="progress-step"><span class="progress-number">2</span><span>Giải bài</span></li>
+      <li class="progress-divider" aria-hidden="true"></li>
+      <li data-phase="apply" class="progress-step"><span class="progress-number">3</span><span>Điền bài</span></li>
+    </ol>
+    <p id="status" role="status" aria-live="polite" class="status"><span class="status-indicator" aria-hidden="true"></span><span class="status-message">Đang chuẩn bị…</span></p>
+
+    <section id="emptyState" class="empty-state" aria-label="Hướng dẫn bắt đầu">
+      <div class="empty-illustration"><svg class="ui-icon"><use href="#icon-book"/></svg></div>
+      <strong>Bài tập của bạn sẽ xuất hiện ở đây</strong>
+      <p>Mở bài trên Spark và chọn <b>Quét bài</b>. Bạn có thể xem và sửa đáp án trước khi điền.</p>
+    </section>
+
+    <section id="results" class="results-section" aria-label="Kết quả quét" hidden>
+      <div class="section-heading">
+        <div class="section-heading-copy"><span class="overline-small">BÀI ĐANG MỞ</span><h2 id="title">Bài tập</h2><p id="count"></p></div>
+        <span class="section-icon"><svg class="ui-icon"><use href="#icon-book"/></svg></span>
+      </div>
+      <div id="questions" class="questions" aria-label="Danh sách câu hỏi"></div>
+      <div class="result-actions"><button id="copy" type="button" class="button button-subtle"><svg class="ui-icon"><use href="#icon-copy"/></svg> Sao chép</button><button id="solve" type="button" class="button button-primary"><svg class="ui-icon"><use href="#icon-spark"/></svg> Giải bài</button></div>
+      <div class="review-panel"><div class="review-icon"><svg class="ui-icon"><use href="#icon-check"/></svg></div><div class="review-copy"><strong>Điền đáp án</strong><p>Kiểm tra đáp án trước khi áp dụng. Extension không tự nộp bài.</p></div></div>
+      <button id="apply" class="button button-apply" type="button" disabled>Điền các đáp án đã chọn <svg class="ui-icon"><use href="#icon-arrow"/></svg></button>
+      <p id="fillReport" class="fill-report" aria-live="polite"></p>
+    </section>
+    <footer class="popup-footer"><span class="privacy-mark" aria-hidden="true">●</span> API chỉ được gọi theo chế độ bạn đã cấu hình. <span>Không tự nộp bài.</span></footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 Chrome extension (Manifest V3) giúp **đọc bài tập NGL Spark ngay từ trang Dashboard**, gợi ý đáp án và hỗ trợ điền đáp án khi đã xem trước.
 
-**Trạng thái: bản thử nghiệm v0.2.0.** Đã triển khai mã nguồn, kiểm thử bộ giải offline và logic API bằng các ca kiểm thử, **chưa kiểm thử end-to-end với một tài khoản Spark đang đăng nhập**. Cấu trúc HTML hoặc hành vi của website có thể khác theo từng bài.
+**Trạng thái: bản thử nghiệm v0.3.0.** Đã triển khai mã nguồn, kiểm thử bộ giải offline và logic API bằng các ca kiểm thử, **chưa kiểm thử end-to-end với một tài khoản Spark đang đăng nhập**. Cấu trúc HTML hoặc hành vi của website có thể khác theo từng bài.
 
 ## Cài trên Chrome
 
@@ -15,7 +15,20 @@ Chrome extension (Manifest V3) giúp **đọc bài tập NGL Spark ngay từ tra
 
 Nếu Chrome đang mở Spark từ trước khi cài extension, hãy tải lại trang rồi quét lại.
 
-## Chế độ giải bài (v0.2.0)
+## Giao diện v0.3.0 — Native-inspired design
+
+Phiên bản này tập trung vào **UI/UX**, không đổi cách gọi API, thuật toán so sánh hay cách điền bài. Hai giao diện được thiết kế lại toàn bộ bằng HTML/CSS/JavaScript thuần (không thêm framework, font từ CDN, hay analytics):
+
+- **Popup**: quy trình 3 bước rõ ràng **Đọc bài → Giải bài → Điền bài**. Khi phát hiện bài, thẻ giới thiệu thu gọn để ưu tiên câu hỏi. Từng câu trong danh sách mở/thu gọn, có trạng thái đáp án và các phương án bất đồng để chọn lại.
+- **Options**: bố cục sidebar, ba lựa chọn chế độ giải dạng radio, quản lý API theo danh sách và form, API key có nút hiện/ẩn, nút Lưu cố định khi cuộn, trạng thái thay đổi chưa lưu, thông tin quyền riêng tư.
+- Hỗ trợ **sáng/tối theo hệ thống**, giao diện **responsive** ở cửa sổ hẹp, **bàn phím/focus states**, và **reduced motion**.
+- **Offline được giữ nguyên** như một lựa chọn tương thích. Chưa triển khai thư viện, model hay database offline mới. Hướng ưu tiên sử dụng API.
+
+Ảnh chụp trong `docs/screenshots/` được dựng bằng dữ liệu giả lập, không phải screenshot từ tài khoản Spark thực tế. Giao diện cần được kiểm tra trực tiếp sau khi nạp lại extension trong Chrome.
+
+Xem thêm [`docs/UI_DESIGN.md`](docs/UI_DESIGN.md) để hiểu các nguyên tắc thiết kế, accessibility, các trạng thái và phạm vi thay đổi.
+
+## Chế độ giải bài (v0.3.0)
 
 - **Offline:** Không cần API key, không gửi câu hỏi ra ngoài, vẫn dùng các quy tắc hẹp trong `solver.js`. Độ bao phủ có giới hạn; các câu không chắc chắn được để trống.
 - **Một API:** Mở ⚙ **Cài đặt** → thêm hoặc sửa một cấu hình API → đặt endpoint, tên model, API key, chế độ JSON → chọn **Cấu hình chính** → chọn **Một API** → **Lưu cài đặt** và cấp quyền truy cập máy chủ theo yêu cầu Chrome.
@@ -63,12 +76,12 @@ API key được lưu bằng `chrome.storage.local`, không hard-code vào tiệ
 
 - `manifest.json`: khai báo extension MV3.
 - `content.js`: quét phần bài tập và hỗ trợ điền, chạy trên iframe.
-- `popup.html`, `popup.js`, `styles.css`: cửa sổ quản lý bài tập.
-- `options.html`, `options.js`: quản lý nhiều cấu hình API, cấp quyền host theo yêu cầu.
+- `popup.html`, `popup.js`, `styles.css`: popup thiết kế theo quy trình, hiển thị câu hỏi dạng accordion và token màu sáng/tối.
+- `options.html`, `options.js`: trang Settings responsive, quản lý nhiều cấu hình API, cấp quyền host theo yêu cầu.
 - `background.js`: gửi yêu cầu đến nhiều API tương thích, xử lý lỗi và so sánh kết quả.
 - `providers.js`: preset, schema, chuẩn hóa cấu hình, xác thực URL/đáp án và quy tắc đồng thuận.
 - `solver.js`: bộ giải theo quy tắc offline.
-- `tests/solver.test.js`, `tests/providers.test.js`: kiểm thử logic độc lập, chạy `node --test tests/*.test.js`.
+- `tests/*.test.js`: kiểm thử logic và hợp đồng UI, chạy `node --test tests/*.test.js`.
 
 ### Giới hạn thực tế
 
