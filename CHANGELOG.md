@@ -1,3 +1,9 @@
+## v0.4.1 — Popup width hotfix
+
+- Fix Chrome action popup collapsing to an extremely narrow width by removing viewport-relative `max-width` and `max-height` from the popup container.
+- Assign the popup document and body a stable 376px intrinsic width, retaining the 600px scroll cap.
+- Add a regression test for popup sizing; existing functionality unchanged.
+
 # Changelog
 
 ## 0.3.0 — Native-inspired UI / UX

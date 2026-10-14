@@ -38,9 +38,18 @@ test('design supports system theme, reduced motion and compact popup',()=>{
   assert.match(css,/body\.popup\s*\{[\s\S]*?width:376px/);
   assert.match(css,/\.popup\.has-results \.welcome-panel/);
 });
+test('popup sizing does not depend on its initial viewport width',()=>{
+  assert.match(popup,/<html[^>]*class="popup-document"/);
+  const htmlRule=css.match(/html\.popup-document\s*\{([^}]+)\}/)?.[1]||'';
+  const bodyRule=css.match(/body\.popup\s*\{([^}]+)\}/)?.[1]||'';
+  assert.match(htmlRule,/min-width:376px/);
+  assert.match(bodyRule,/min-width:376px/);
+  assert.doesNotMatch(bodyRule,/100vw|100vh/);
+  assert.match(bodyRule,/max-height:600px/);
+});
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.4.0');
+  assert.equal(manifest.version,'0.4.1');
   assert.match(options,/data-i18n="version"/);
 });
 

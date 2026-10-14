@@ -11,7 +11,7 @@
 [**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Thiết kế**](docs/UI_DESIGN.md) · [**Lịch sử cập nhật**](CHANGELOG.md)
 
 <img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-2563EB?style=flat-square" />
-<img alt="Phiên bản 0.4.0" src="https://img.shields.io/badge/version-0.4.0-171717?style=flat-square" />
+<img alt="Phiên bản 0.4.1" src="https://img.shields.io/badge/version-0.4.1-171717?style=flat-square" />
 <img alt="Không cần build" src="https://img.shields.io/badge/build-none-3A8B63?style=flat-square" />
 <img alt="4 ngôn ngữ" src="https://img.shields.io/badge/languages-4-8B5CF6?style=flat-square" />
 
