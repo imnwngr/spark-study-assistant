@@ -2,7 +2,8 @@
 const $=id=>document.getElementById(id);
 const I=SparkI18n;const t=(key,args)=>I.t(key,args);
 const P=SparkProviders;
-const state={aiMode:'offline',activeProfileId:'',profiles:[],editingId:'',dirty:false,uiLanguage:'en',uiTheme:'system',autoNext:true};
+const state={aiMode:'offline',activeProfileId:'',profiles:[],editingId:'',dirty:false,uiLanguage:'en',uiTheme:'system',uiBackdropColor:SparkAppearance.DEFAULT_COLOR,uiBackdropStrength:SparkAppearance.DEFAULT_STRENGTH,autoNext:true};
+const colorStudio=SparkColorStudio.mount(({color,strength})=>{state.uiBackdropColor=color;state.uiBackdropStrength=strength;markDirty();});
 const attrs=['profileName','endpoint','model','apiKey','responseFormat','enabled'];
 
 function message(text,bad=false){
@@ -86,6 +87,7 @@ async function initialize(){
   if(chrome.storage.local.setAccessLevel)await chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'});
   const appearance=await I.load();
   Object.assign(state,appearance);
+  const wallpaper=await SparkAppearance.load();Object.assign(state,wallpaper);colorStudio.set(state.uiBackdropColor,state.uiBackdropStrength);SparkAppearance.attachGlint();
   $('uiLanguage').value=state.uiLanguage; $('uiTheme').value=state.uiTheme;
   const savedPrefs=await chrome.storage.local.get(['autoNext']);
   state.autoNext=savedPrefs.autoNext!==false;$('autoNext').checked=state.autoNext;
@@ -98,7 +100,7 @@ async function initialize(){
 for(const radio of document.querySelectorAll('input[name="aiMode"]')){
   radio.addEventListener('change',()=>{state.aiMode=currentMode();renderMode();markDirty();});
 }
-$('uiLanguage').addEventListener('change',()=>{state.uiLanguage=$('uiLanguage').value;I.setLanguage(state.uiLanguage);render();markDirty();});
+$('uiLanguage').addEventListener('change',()=>{state.uiLanguage=$('uiLanguage').value;I.setLanguage(state.uiLanguage);render();document.dispatchEvent(new Event('spark-language-changed'));markDirty();});
 $('uiTheme').addEventListener('change',()=>{state.uiTheme=$('uiTheme').value;I.setTheme(state.uiTheme);markDirty();});
 $('autoNext').addEventListener('change',()=>{state.autoNext=$('autoNext').checked;markDirty();});
 $('activeProfile').addEventListener('change',()=>{state.activeProfileId=$('activeProfile').value;renderLists();markDirty();});
@@ -160,7 +162,7 @@ $('save').addEventListener('click',async()=>{
       if(!granted)throw new Error(t('permissionsDenied'));
     }
     const aiProfiles=state.profiles.map(P.sanitizeProfile);
-    await chrome.storage.local.set({aiProfiles,aiMode:state.aiMode,activeProfileId:state.activeProfileId,uiLanguage:state.uiLanguage,uiTheme:state.uiTheme,autoNext:state.autoNext});
+    await chrome.storage.local.set({aiProfiles,aiMode:state.aiMode,activeProfileId:state.activeProfileId,uiLanguage:state.uiLanguage,uiTheme:state.uiTheme,uiBackdropColor:state.uiBackdropColor,uiBackdropStrength:state.uiBackdropStrength,autoNext:state.autoNext});
     await chrome.storage.local.remove(['apiKey','model','useAI']);
     markSaved();message(t('savedProfiles',{n:aiProfiles.length,mode:state.aiMode}));
   }catch(error){message(error.message||String(error),true);}

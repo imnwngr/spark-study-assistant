@@ -4,14 +4,14 @@
 
 # Spark Study Assistant
 
-**Không gian gọn gàng để làm bài trên NGL Spark.**
+**Không gian kính trong suốt, tập trung cho NGL Spark.**
 
 Đọc bài · So sánh đáp án AI · Kiểm tra · Điền bài · Chấm và chuyển bài
 
-[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Thiết kế**](docs/UI_DESIGN.md) · [**Lịch sử cập nhật**](CHANGELOG.md)
+[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Thiết kế**](docs/GLASS_DESIGN.md) · [**Lịch sử cập nhật**](CHANGELOG.md)
 
 <img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-2563EB?style=flat-square" />
-<img alt="Phiên bản 0.4.1" src="https://img.shields.io/badge/version-0.4.1-171717?style=flat-square" />
+<img alt="Phiên bản 0.5.0" src="https://img.shields.io/badge/version-0.5.0-171717?style=flat-square" />
 <img alt="Không cần build" src="https://img.shields.io/badge/build-none-3A8B63?style=flat-square" />
 <img alt="4 ngôn ngữ" src="https://img.shields.io/badge/languages-4-8B5CF6?style=flat-square" />
 
@@ -23,10 +23,10 @@
 
 Spark Study Assistant là **Chrome Extension cài trực tiếp trên máy**, hỗ trợ một số dạng bài của [National Geographic Learning Spark](https://learn.eltngl.com/). Extension đọc nội dung bài tập trong các iframe được cấp quyền, có thể gọi AI qua API để gợi ý đáp án, rồi cho phép bạn kiểm tra và điền vào trang.
 
-Giao diện lấy cảm hứng từ **Apple/iOS/macOS**: chữ rõ, khoảng cách tiết chế, màu nhấn vừa phải, trạng thái dễ nhận biết, không đánh đổi sự tiện dụng để lấy hiệu ứng trang trí. Bản cập nhật tham chiếu các nguyên tắc [Hallmark](https://github.com/nutlope/hallmark) và giữ nguyên nền HTML/CSS/JavaScript thuần.
+Giao diện dùng ngôn ngữ **Liquid Glass**: các lớp kính trong, viền phản sáng, độ mờ có kiểm soát, dock thao tác riêng và màu nền theo sở thích. Bố cục và trạng thái tương tác được thiết kế theo [Hallmark](https://github.com/nutlope/hallmark), trên nền HTML/CSS/JavaScript thuần.
 
 <table align="center">
-<tr><td align="center"><img src="docs/screenshots/popup-light-v04.png" alt="Popup chế độ sáng" width="300" /></td><td align="center"><img src="docs/screenshots/popup-dark-v04.png" alt="Popup chế độ tối" width="300" /></td></tr>
+<tr><td align="center"><img src="docs/screenshots/popup-glass-light.png" alt="Popup chế độ sáng" width="300" /></td><td align="center"><img src="docs/screenshots/popup-glass-dark.png" alt="Popup chế độ tối" width="300" /></td></tr>
 <tr><td align="center"><small>Giao diện sáng</small></td><td align="center"><small>Giao diện tối</small></td></tr>
 </table>
 
@@ -44,7 +44,7 @@ Giao diện lấy cảm hứng từ **Apple/iOS/macOS**: chữ rõ, khoảng cá
 | **Điền có xác minh** | Báo rõ mục đã điền, chưa chắc chắn, bỏ qua hoặc phải làm thủ công. |
 | **Nộp & chuyển bài — thử nghiệm** | Chỉ thực hiện sau khi bạn nhấn nút, xác nhận và trang có đủ điều kiện. |
 | **Bốn ngôn ngữ** | English (mặc định), Tiếng Việt, 简体中文, 繁體中文. |
-| **Sáng / tối** | Chọn Sáng, Tối hoặc Theo hệ thống; lưu cho cả popup và Settings. |
+| **Giao diện và màu nền** | Sáng, Tối, Theo hệ thống; 9 màu dựng sẵn, vòng chọn màu, HEX, bảng màu hệ thống, thanh cường độ và xem trước trực tiếp. |
 | **Quy tắc offline cũ** | Giữ để tương thích, không mở rộng ở phiên bản này; ưu tiên giải bài bằng API. |
 
 ### Cài đặt extension
@@ -61,6 +61,19 @@ Không cần `npm install` hay bước build. **Sử dụng AI qua API cần có
 ### Đổi ngôn ngữ và giao diện
 
 Vào **Settings → General**, chọn ngôn ngữ và chế độ Sáng / Tối / Theo hệ thống, rồi nhấn **Save changes** (tùy ngôn ngữ đang hiển thị). Khi cài mới, giao diện mặc định là **English**, không phụ thuộc ngôn ngữ trình duyệt. Tùy chọn lưu trong `chrome.storage.local` và áp dụng cho cả hai trang.
+
+### Tùy chỉnh màu nền Liquid Glass
+
+Mở **Settings → Xưởng màu (Color studio)**, hoặc cuộn đến **Một không gian mang dấu ấn riêng** trong mục General. Bộ chỉnh màu có các tính năng:
+
+- **9 màu có sẵn**; nhấp màu để xem trước ngay.
+- **Vòng chọn sắc độ**, hỗ trợ chuột, các phím mũi tên và Shift + mũi tên để điều chỉnh nhanh.
+- Nhập **mã HEX sáu ký tự**, mở bảng màu mặc định của Chrome, và chỉnh **Cường độ nền** từ 0–100%.
+- Dùng **Khôi phục mặc định** để trở về màu Glacier. Bấm **Lưu thay đổi** để áp dụng cho cả popup và Settings.
+
+<table align="center"><tr><td><img src="docs/screenshots/color-studio-light.png" alt="Bộ chỉnh màu nền sáng" width="480" /></td><td><img src="docs/screenshots/color-studio-dark.png" alt="Bộ chỉnh màu nền tối" width="480" /></td></tr></table>
+
+**Giới hạn kỹ thuật:** Đây là hiệu ứng kính CSS (`backdrop-filter`, lớp màu trong suốt, viền phản sáng), không phải API Liquid Glass gốc của Apple. Popup Chrome không thể làm mờ trực tiếp trang web đằng sau thanh công cụ Chrome. Nếu hệ thống bật giảm hiệu ứng trong suốt hoặc tăng tương phản, nền sẽ tự đơn giản hóa. Màu bạn chọn chỉ lưu tại `chrome.storage.local`, không được gửi đến dịch vụ AI.
 
 ### Cấu hình API
 
@@ -130,7 +143,7 @@ Không thêm trình theo dõi, font online hay runtime UI của bên thứ ba. N
 
 **Ưu tiên đáp án có thể kiểm tra, không phải những cú nhấp âm thầm.**
 
-[English →](README.md) · [Nguyên tắc thiết kế](docs/UI_DESIGN.md) · [Giới hạn tự động hóa](docs/AUTOMATION_DISCOVERY.md)
+[English →](README.md) · [Nguyên tắc thiết kế](docs/GLASS_DESIGN.md) · [Giới hạn tự động hóa](docs/AUTOMATION_DISCOVERY.md)
 
 <sub>Tiện ích độc lập, không phải sản phẩm chính thức hay được National Geographic Learning / Spark bảo trợ.</sub>
 

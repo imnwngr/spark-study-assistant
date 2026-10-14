@@ -260,10 +260,10 @@ async function showMode(){
   }catch{}
 }
 async function initialize(){
-  try {await I.load();const stored=await chrome.storage.local.get(['autoNext']);state.autoNext=stored.autoNext!==false;}catch{}
+  try {await I.load();await SparkAppearance.load();SparkAppearance.attachGlint();const stored=await chrome.storage.local.get(['autoNext']);state.autoNext=stored.autoNext!==false;}catch{}
   await showMode();await scanPage();
 }
-chrome.storage.onChanged?.addListener((changes,area)=>{if(area==='local'&&(changes.uiLanguage||changes.uiTheme)){
-  I.load().then(()=>{showMode();if(state.questions.length){render();updateAnswers();$('count').textContent=t('count',{n:state.questions.length,frame:state.frameId});}}).catch(()=>{});
+chrome.storage.onChanged?.addListener((changes,area)=>{if(area==='local'&&(changes.uiLanguage||changes.uiTheme||changes.uiBackdropColor||changes.uiBackdropStrength)){
+  Promise.all([I.load(),SparkAppearance.load()]).then(()=>{showMode();if(state.questions.length){render();updateAnswers();$('count').textContent=t('count',{n:state.questions.length,frame:state.frameId});}}).catch(()=>{});
 }});
 initialize();

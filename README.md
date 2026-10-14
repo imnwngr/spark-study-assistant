@@ -4,14 +4,14 @@
 
 # Spark Study Assistant
 
-**A quieter way to work through NGL Spark exercises.**
+**A focused glass workspace for NGL Spark.**
 
 Read the current exercise · Compare AI answers · Review · Fill · Check
 
-[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Design notes**](docs/UI_DESIGN.md) · [**Changelog**](CHANGELOG.md)
+[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Design notes**](docs/GLASS_DESIGN.md) · [**Changelog**](CHANGELOG.md)
 
 <img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-2563EB?style=flat-square" />
-<img alt="Version 0.4.1" src="https://img.shields.io/badge/version-0.4.1-171717?style=flat-square" />
+<img alt="Version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-171717?style=flat-square" />
 <img alt="No build tooling" src="https://img.shields.io/badge/build-none-3A8B63?style=flat-square" />
 <img alt="4 interface languages" src="https://img.shields.io/badge/languages-4-8B5CF6?style=flat-square" />
 
@@ -23,10 +23,10 @@ Read the current exercise · Compare AI answers · Review · Fill · Check
 
 Spark Study Assistant is a **locally installed Chrome extension** for selected exercise formats on [National Geographic Learning Spark](https://learn.eltngl.com/). It reads exercise elements inside supported frames, optionally asks an API-compatible AI model for answers, then lets you inspect and apply those answers.
 
-The interface borrows the **calm, practical language of iOS and macOS**: compact controls, deliberate hierarchy, subdued surfaces and an explicit review step. The redesign was audited against the [Hallmark](https://github.com/nutlope/hallmark) design skill, with product behavior preserved in vanilla HTML/CSS/JavaScript.
+The interface takes **Liquid Glass** as its material language: translucent sheets, controlled blur, responsive highlights, a single command dock and a user-selected background. Its structure and interaction states follow [Hallmark](https://github.com/nutlope/hallmark) anti-slop principles. The product remains vanilla HTML/CSS/JavaScript without remote UI dependencies.
 
 <table align="center">
-<tr><td align="center"><img src="docs/screenshots/popup-light-v04.png" alt="Compact popup in light mode" width="300" /></td><td align="center"><img src="docs/screenshots/popup-dark-v04.png" alt="Compact popup in dark mode" width="300" /></td></tr>
+<tr><td align="center"><img src="docs/screenshots/popup-glass-light.png" alt="Compact popup in light mode" width="300" /></td><td align="center"><img src="docs/screenshots/popup-glass-dark.png" alt="Compact popup in dark mode" width="300" /></td></tr>
 <tr><td align="center"><small>Light mode</small></td><td align="center"><small>Dark mode</small></td></tr>
 </table>
 
@@ -44,7 +44,7 @@ The interface borrows the **calm, practical language of iOS and macOS**: compact
 | **Controlled filling** | Attempts to fill supported controls and reports confirmed, uncertain, skipped or manual items. |
 | **Check & next — experimental** | Explicit confirmation required. Only proceeds when all recognized items are verified and the page exposes suitable controls. |
 | **Interface languages** | English (default), Tiếng Việt, 简体中文, 繁體中文. |
-| **Appearance** | Light, Dark or Follow system — persisted locally and shared between popup and Settings. |
+| **Appearance** | Light, Dark or Follow system; nine backdrop swatches; interactive hue wheel; arbitrary HEX/native color picker; intensity slider and instant preview. |
 | **Legacy offline rules** | Kept for compatibility; not being expanded in this release. API-backed solving is the recommended path. |
 
 ### Install from source
@@ -61,6 +61,19 @@ No `npm install`, build step or backend service is required for the UI and rule 
 ### Language and appearance
 
 Open **Settings → General**. Select a display language and a theme, then press **Save changes**. English is the default for new installations, regardless of your browser language. Your selection is saved in `chrome.storage.local` and applies to the popup and Settings.
+
+### Customize the Liquid Glass background
+
+Open **Settings → Color studio** (or scroll to **Your own atmosphere** under General). The editor works like a compact desktop color studio:
+
+- Choose from **nine named wallpaper colors**, or pick any color on the **hue ring** (arrow keys also work; Shift+arrow adjusts faster).
+- Enter a six-digit **HEX color**, use Chrome's native color picker, and adjust **Background intensity** from 0–100%.
+- See the real theme tokens applied to the live interface preview. Click **Restore default** to return to Glacier.
+- Choose **System / Light / Dark** independently. **Save changes** writes only `uiBackdropColor` and `uiBackdropStrength` (plus your other preferences) to `chrome.storage.local`.
+
+<table align="center"><tr><td><img src="docs/screenshots/color-studio-light.png" alt="Color studio: hue ring, nine palettes and live preview in light mode" width="480" /></td><td><img src="docs/screenshots/color-studio-dark.png" alt="Color studio in dark mode" width="480" /></td></tr></table>
+
+Liquid Glass here is a **CSS material approximation** (`backdrop-filter`, translucent layers, refractive light, contrast fallbacks). A Chrome extension popup is its own surface: it **cannot blur or recolor the web page behind Chrome's toolbar**. Translucency is automatically simplified for reduced-transparency/high-contrast preferences. No color preference is sent to an AI endpoint.
 
 ### Configure an AI provider
 
@@ -107,7 +120,9 @@ spark-study-assistant/
 ├── popup.html / popup.js        # Compact exercise workflow
 ├── options.html / options.js    # AI profiles, language, theme, workflow
 ├── i18n.js                      # English, Vietnamese, 简体中文, 繁體中文
-├── styles.css                   # Shared design tokens & responsive styling
+├── styles.css                   # Glass materials, tokens and responsive layout
+├── appearance.js                # Shared wallpaper persistence and CSS tokens
+├── color-studio.js              # Palette, hue ring, HEX and intensity controls
 ├── content.js                   # Per-frame extraction, fill, check & next
 ├── background.js                # AI requests, safe provider fallback
 ├── providers.js / solver.js     # Profiles, model comparison, legacy rules
@@ -130,7 +145,7 @@ There is no telemetry or additional remote UI runtime. The legacy offline resear
 
 **Built for reviewable answers, not silent clicks.**
 
-[Tiếng Việt →](README.vi.md) · [UI design decisions](docs/UI_DESIGN.md) · [Automation limitations](docs/AUTOMATION_DISCOVERY.md)
+[Tiếng Việt →](README.vi.md) · [UI design decisions](docs/GLASS_DESIGN.md) · [Automation limitations](docs/AUTOMATION_DISCOVERY.md)
 
 <sub>Independent open-source helper. Not affiliated with or endorsed by National Geographic Learning or Spark.</sub>
 

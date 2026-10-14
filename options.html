@@ -22,6 +22,7 @@
 <div class="sidebar-brand"><img alt="" height="42" src="icons/icon48.png" width="42"/><div><strong>Spark Assistant</strong><small data-i18n="sidebarSubtitle"></small></div></div>
 <p class="sidebar-caption" data-i18n="sidebarCustomize"></p>
 <nav aria-label="Settings sections" class="settings-nav"><a class="nav-link is-active" data-nav="appearance" href="#appearance"><span data-i18n="navGeneral">General</span></a>
+<a class="nav-link" data-nav="colors" href="#wallpaperStudio"><span class="nav-color-dot" aria-hidden="true"></span><span data-i18n="navAtmosphere">Color studio</span></a>
 <a class="nav-link" data-nav="general" href="#general"><svg class="ui-icon"><use href="#ic-sliders"></use></svg><span data-i18n="navAnswers"></span></a>
 <a class="nav-link" data-nav="providers" href="#providers"><svg class="ui-icon"><use href="#ic-cube"></use></svg><span data-i18n="navProviders"></span></a>
 <a class="nav-link" data-nav="privacy" href="#privacy"><svg class="ui-icon"><use href="#ic-lock"></use></svg><span data-i18n="navPrivacy"></span></a>
@@ -38,7 +39,30 @@
 <div class="preference-row"><div><label class="field-label" data-i18n="language" for="uiLanguage">Display language</label><p class="field-help" data-i18n="languageHelp">English is the default for a new installation.</p></div><select aria-label="Display language" class="settings-input" id="uiLanguage"><option value="en">English</option><option value="vi">Tiếng Việt</option><option value="zh-CN">简体中文</option><option value="zh-TW">繁體中文</option></select></div>
 <div class="preference-row"><div><label class="field-label" data-i18n="theme" for="uiTheme">Appearance</label></div><select aria-label="Appearance" class="settings-input" id="uiTheme"><option data-i18n="systemTheme" value="system">System</option><option data-i18n="lightTheme" value="light">Light</option><option data-i18n="darkTheme" value="dark">Dark</option></select></div>
 <p class="field-help" data-i18n="appearanceNote">Changes appear in the popup and Settings immediately after saving.</p>
-</div></section><section aria-labelledby="generalTitle" class="settings-section" id="general">
+</div>
+<div class="wallpaper-studio" id="wallpaperStudio">
+  <div class="color-studio-head"><div><span class="section-kicker" data-i18n="colorKicker">MAKE IT YOURS</span><h3 data-i18n="colorTitle">Your own atmosphere</h3><p data-i18n="colorDescription">Choose a tint, then fine-tune the light.</p></div><button type="button" class="color-reset" id="resetColor" data-i18n="colorReset">Restore default</button></div>
+  <div class="wallpaper-layout">
+    <div class="color-controls">
+      <div class="color-group"><div class="color-group-head"><span class="micro-label" data-i18n="colorPresets">COLOR STORIES</span><span id="selectedColorName" class="current-tone" aria-live="polite">Glacier</span></div>
+        <div class="color-swatches" id="colorPresets" role="group" aria-label="Background colors"></div>
+      </div>
+      <div class="color-fine-tune"><span class="micro-label" data-i18n="colorFineTune">FINE TUNE</span>
+        <div class="picker-row"><div id="colorWheel" class="color-wheel" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="359" aria-valuenow="210" aria-label="Hue ring" data-i18n-title="colorWheel"><span class="wheel-track" aria-hidden="true"><span class="wheel-knob" id="wheelKnob"></span><span class="wheel-center" id="wheelCenter"></span></span></div>
+          <div class="picker-fields"><label class="field-label" data-i18n="colorHex" for="colorHex">Hex color</label><div class="color-hex-row"><span class="color-sample" id="colorSample" aria-hidden="true"></span><input id="colorHex" class="settings-input color-hex-input" maxlength="7" spellcheck="false" inputmode="text" value="#90adce"/></div><label class="native-picker-label" for="nativeColor"><span data-i18n="colorNative">System color picker</span><input id="nativeColor" type="color" value="#90adce" aria-label="System color picker"/></label></div>
+        </div>
+        <p class="field-help" data-i18n="colorWheelHelp">Click the ring or use arrow keys to choose a hue.</p>
+      </div>
+      <div class="color-intensity"><label class="field-label" data-i18n="colorIntensity" for="wallStrength">Background intensity</label><div class="range-row"><input type="range" id="wallStrength" min="0" max="100" step="5" value="65"/><output id="strengthValue" for="wallStrength">65%</output></div></div>
+    </div>
+    <div class="color-preview" id="colorPreview" aria-label="Live appearance preview">
+      <span class="micro-label" data-i18n="colorPreview">LIVE PREVIEW</span>
+      <div class="preview-sheet"><div class="preview-minihead"><span class="preview-mark" aria-hidden="true"></span><span>Spark Assistant</span><span class="preview-three-dots" aria-hidden="true">···</span></div><div class="preview-content"><span class="preview-kicker">01 / VOCABULARY</span><strong data-i18n="colorPreviewTitle">Ready when you are.</strong><p data-i18n="colorPreviewDescription">A quieter space for your next answer.</p><div class="preview-sample"><span>01</span><div class="preview-lines" aria-hidden="true"><i></i><i></i></div><span class="preview-tick" aria-hidden="true">✓</span></div><span class="preview-button" data-i18n="colorPreviewAction">Solve exercise</span></div></div>
+      <p class="preview-caption" data-i18n="colorSaveNote">Preview changes here. Save to apply the new background in the popup.</p>
+    </div>
+  </div>
+</div>
+</section><section aria-labelledby="generalTitle" class="settings-section" id="general">
 <div class="section-head"><div><span class="section-kicker" data-i18n="modeKicker"></span><h2 data-i18n="modeTitle" id="generalTitle"></h2><p data-i18n="modeDescription"></p></div><span class="section-symbol"><svg class="ui-icon"><use href="#ic-sliders"></use></svg></span></div>
 <div class="settings-card mode-card">
 <fieldset class="mode-grid" id="aiModeChoices"><legend class="sr-only" data-i18n="modeTitle">How answers are generated</legend>
@@ -80,6 +104,6 @@
 </main>
 </div>
 <script src="providers.js"></script>
-<script src="i18n.js"></script><script src="options.js"></script>
+<script src="i18n.js"></script><script src="appearance.js"></script><script src="color-studio.js"></script><script src="options.js"></script>
 </body>
 </html>

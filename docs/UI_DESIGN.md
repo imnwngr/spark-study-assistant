@@ -1,3 +1,5 @@
+> Historical design notes for v0.4.x. See [v0.5.0 Liquid Glass / Hallmark redesign](GLASS_DESIGN.md) for the active system.
+
 # Design system · v0.4.0
 
 **Design intent:** a pocket-sized, review-first study tool. The user is a learner working in a small extension popup, often with an assignment occupying the main browser window. The dominant task is **scan → solve → inspect → fill**. Submission and navigation are explicit, higher-risk secondary actions.
