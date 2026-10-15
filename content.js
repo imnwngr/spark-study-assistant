@@ -176,8 +176,14 @@
     }
     const screenMatch=(root.id||'').match(/content_wrap_(\d+)/);
     const screenIndex=screenMatch?Number(screenMatch[1]):0;
-    lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),submitted:false,screenIndex,activeRoot:root};
-    return {title,questions,screenIndex,frameUrl:location.origin+location.pathname,hasExercise:questions.length>0};
+    const screenRoots=[...document.querySelectorAll('.content-wrap[id^="content_wrap_"]')];
+    const indices=screenRoots.map(el=>Number(el.id.match(/^content_wrap_(\d+)$/)?.[1]));
+    const reliableScreens=indices.length>1 && indices.every(Number.isInteger) &&
+      new Set(indices).size===indices.length && Math.min(...indices)===0 &&
+      Math.max(...indices)===indices.length-1;
+    const screenCount=reliableScreens?indices.length:null;
+    lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),appliedOrder:new Map(),submitted:false,screenIndex,screenCount,activeRoot:root};
+    return {title,questions,screenIndex,screenCount,frameUrl:location.origin+location.pathname,hasExercise:questions.length>0};
   }
   // Read the complete, *currently visible* exercise as a learner sees it.
   // Never copy typed answers, XML correctResponse data, tokens, or hidden screens.
@@ -439,11 +445,12 @@
         else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
         if(outcome.status==='filled'){
           lastScan.applied.set(id,value);
+          if(found.kind==='order')lastScan.appliedOrder.set(id,response.orderedTokens.map(tidy));
           if(found.items){
             const ids=found.items.filter(item=>isChecked(item.node)).map(item=>item.id);
             lastScan.appliedChoiceIds.set(id,ids);
           }
-        }else{lastScan.applied.delete(id);lastScan.appliedChoiceIds.delete(id);}
+        }else{lastScan.applied.delete(id);lastScan.appliedChoiceIds.delete(id);lastScan.appliedOrder.delete(id);}
         results.push({id,...outcome});
       } catch(error) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:String(error?.message || error)});}
     }
@@ -468,19 +475,20 @@
     const answerStates=document.querySelectorAll('.status-correct,.status-incorrect,.is-correct,.is-incorrect,.correct-answer,.incorrect-answer').length;
     return {checkAvailable:available.length===1, answerStates};
   }
-  async function submitNext(expected,goNext) {
-    if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot)
-      return {submitted:false,reason:'submitChanged'};
-    if(lastScan.submitted)return {submitted:false,reason:'submitAlready'};
-    if(!Number.isInteger(expected)||expected!==lastScan.questions.length || !expected ||
-      lastScan.questions.some(q=>!q.applyable||q.kind==='order')||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
-      return {submitted:false,reason:'submitUnverified'};
-    }
-    // A manual change after filling invalidates the verification: re-read actual DOM values.
-    const consistent=[...lastScan.refs.entries()].every(([id,ref])=>{
+  // Verify all applied answers against live controls, not merely a successful click.
+  function appliedStillMatches() {
+    if(!lastScan.questions.length || lastScan.refs.size!==lastScan.questions.length ||
+      lastScan.applied.size!==lastScan.questions.length ||
+      lastScan.questions.some(q=>!q.applyable))return false;
+    return [...lastScan.refs.entries()].every(([id,ref])=>{
       if(!(ref.items?ref.items.every(item=>document.contains(item.node)):document.contains(ref.node)))return false;
       const wanted=normalized(lastScan.applied.get(id));
       if(!wanted)return false;
+      if(ref.kind==='order'){
+        const order=lastScan.appliedOrder?.get(id);
+        return Array.isArray(order) && sameWords(sequenceWords(ref.node),order) &&
+          sequenceWords(ref.node).every((word,i)=>normalized(word)===normalized(order[i]));
+      }
       if(ref.kind==='choice'||ref.kind==='multi'){
         const wanted=lastScan.appliedChoiceIds?.get(id);
         if(!wanted?.length)return false;
@@ -495,7 +503,19 @@
       }
       return normalized(ref.node.value!==undefined?ref.node.value:ref.node.textContent)===wanted;
     });
-    if(!consistent)return {submitted:false,reason:'submitChanged'};
+
+
+  }
+
+  async function submitNext(expected,goNext) {
+    if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot)
+      return {submitted:false,reason:'submitChanged'};
+    if(lastScan.submitted)return {submitted:false,reason:'submitAlready'};
+    if(!Number.isInteger(expected)||expected!==lastScan.questions.length || !expected ||
+      lastScan.questions.some(q=>!q.applyable||q.kind==='order')||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
+      return {submitted:false,reason:'submitUnverified'};
+    }
+    if(!appliedStillMatches())return {submitted:false,reason:'submitChanged'};
 
     // Observed on the authenticated 1b | Grammar | 3 activity:
     //   submit -> Submit to Gradebook, becomes inactive after ~1.2 s
@@ -565,8 +585,35 @@
     return {submitted:true,confirmed:true,nextClicked:false,mode};
   }
 
+  async function forwardScreen(expectedIndex, expectedCount) {
+    if(!lastScan.activeRoot || activeContentRoot()!==lastScan.activeRoot ||
+       !Number.isInteger(expectedIndex) || !Number.isInteger(expectedCount) ||
+       lastScan.screenIndex!==expectedIndex || lastScan.screenCount!==expectedCount ||
+       expectedCount<2 || expectedIndex<0 || expectedIndex>=expectedCount-1)
+      return {advanced:false,reason:'screenBoundary'};
+    if(!appliedStillMatches())return {advanced:false,reason:'screenUnverified'};
+    const next=availableActionControls('forward');
+    if(next.length!==1)return {advanced:false,reason:'screenForwardMissing'};
+    // Spark's intra-activity navigation is `forward`, NEVER `forward_lo`.
+    // Recheck before clicking to avoid advancing a changed screen.
+    if(activeContentRoot()!==lastScan.activeRoot || !actionable(next[0]))
+      return {advanced:false,reason:'screenChanged'};
+    next[0].click();
+    const deadline=Date.now()+2200;
+    while(Date.now()<deadline){
+      await wait(80);
+      const current=activeContentRoot();
+      if(current!==lastScan.activeRoot){
+        const number=Number(current.id?.match(/^content_wrap_(\d+)$/)?.[1]);
+        if(number===expectedIndex+1)return {advanced:true,screenIndex:number};
+        return {advanced:false,reason:'unexpectedScreen'};
+      }
+    }
+    return {advanced:false,reason:'screenTransitionUnknown'};
+  }
+
   chrome.runtime.onMessage.addListener((message,_sender,respond) => {
-    if (!message || !['SPARK_SCAN','SPARK_COPY_PROMPT','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT','SPARK_QTI'].includes(message.type)) return false;
+    if (!message || !['SPARK_SCAN','SPARK_COPY_PROMPT','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT','SPARK_FORWARD_SCREEN','SPARK_QTI'].includes(message.type)) return false;
     if (message.type === 'SPARK_PING') {respond({ok:true,ready:true});return false;}
     if (message.type === 'SPARK_SCAN') {
       try {respond({ok:true,result:scan()});} catch(e) {respond({ok:false,error:e.message});}
@@ -583,6 +630,11 @@
     if (message.type === 'SPARK_APPLY') {
       apply(Array.isArray(message.answers)?message.answers:[])
         .then(result=>respond({ok:true,result}),err=>respond({ok:false,error:err.message}));
+      return true;
+    }
+    if (message.type === 'SPARK_FORWARD_SCREEN') {
+      forwardScreen(message.screenIndex,message.screenCount)
+        .then(result=>respond({ok:true,result}),err=>respond({ok:false,error:String(err?.message||err)}));
       return true;
     }
     if (message.type === 'SPARK_SUBMIT_NEXT') {

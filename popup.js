@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id);
 const I=SparkI18n;
 const t=(key,vars)=>I.t(key,vars);
-const state = {tabId:null,frameId:null,questions:[],title:'',answers:new Map(), solved:false,lastApplyVerified:false,submitting:false};
+const state = {tabId:null,frameId:null,questions:[],title:'',answers:new Map(), solved:false,lastApplyVerified:false,submitting:false,screenIndex:null,screenCount:null,verifiedQti:false};
 const normalized = s=>String(s||'').normalize('NFKC').toLowerCase().trim().replace(/\s+/g,' ');
 function status(message,type='normal') {
   const container=$('status');
@@ -51,6 +51,9 @@ async function scanPage() {
     candidates.sort((a,b)=>b.response.result.questions.length-a.response.result.questions.length);
     const selected=candidates[0];
     state.frameId=selected.frameId;
+    state.screenIndex=selected.response.result.screenIndex;
+    state.screenCount=selected.response.result.screenCount;
+    state.verifiedQti=false;
     state.title=selected.response.result.title;
     state.questions=selected.response.result.questions;
     state.answers=new Map();state.solved=false;state.lastApplyVerified=false;$('submitNext').disabled=true;
@@ -147,7 +150,7 @@ function updateAnswers() {
   }
 }
 async function solve() {
-  if(!state.questions.length)return;
+  if(!state.questions.length)return false;
   state.lastApplyVerified=false;$('submitNext').disabled=true;
   progress('solve');status(t('solving'));
   try {
@@ -193,6 +196,7 @@ async function solve() {
       if(candidate)state.answers.set(q.id,candidate);
     }
     state.solved=true;
+    state.verifiedQti=all.every(q=>trusted.has(q.id));
     if(labelsUpdated)render();
     updateAnswers();
     const complete=all.filter(q=>state.answers.get(q.id)?.answer).length;
@@ -222,7 +226,7 @@ async function copyExercise() {
   } catch(error){status(t('copyFailed',{error:errString(error)}),'error');}
 }
 async function applyAnswers() {
-  if(!state.questions.length)return;
+  if(!state.questions.length)return false;
   state.lastApplyVerified=false;$('submitNext').disabled=true;
   const answers=[];
   let missing=0;
@@ -251,14 +255,40 @@ async function applyAnswers() {
     state.lastApplyVerified=missing===0 && results.length===state.questions.length && results.every(x=>x.status==='filled');
     $('submitNext').disabled=!state.lastApplyVerified;
     if(filled) { document.querySelector('[data-phase="apply"]')?.classList.add('is-done'); document.querySelector('[data-phase="apply"]')?.classList.remove('is-current'); }
-  }catch(error){status(errString(error),'error');}
+    return state.lastApplyVerified;
+  }catch(error){status(errString(error),'error');return false;}
 }
 async function autoSolveAndFill() {
   $('auto').disabled=true;
   try {
-    if(!(await scanPage())) return;
-    if(!(await solve())) return;
-    await applyAnswers();
+    // Bounded intra-activity screen workflow; no learning-object navigation.
+    const seen=new Set();
+    for(let iteration=0;iteration<30;iteration++){
+      if(!(await scanPage()))break;
+      const index=state.screenIndex, count=state.screenCount;
+      const key=`${state.frameId}:${index}:${count}`;
+      if(seen.has(key)){status('Screen did not advance; stopped safely.','error');break;}
+      seen.add(key);
+      if(!(await solve()))break;
+      if(!(await applyAnswers()))break;
+      // QTI provides known keys. AI guesses or manual edits cannot establish correctness.
+      if(!state.verifiedQti){
+        status('Solved this screen. Automatic Next requires verified QTI answers.','normal');
+        break;
+      }
+      // Stop at final screen, or if the total is not independently known.
+      if(!Number.isInteger(count) || count<2 || !Number.isInteger(index) || index>=count-1){
+        status(Number.isInteger(count) ? `Solved screen ${index+1}/${count}. Final screen reached.` :
+          'Solved this screen. Screen count unknown; automatic Next disabled.','success');
+        break;
+      }
+      status(`Verified screen ${index+1}/${count}. Moving to next screen…`,'success');
+      const response=await sendFrame(state.frameId,{type:'SPARK_FORWARD_SCREEN',screenIndex:index,screenCount:count});
+      if(!response?.ok || !response.result?.advanced){
+        status(`Screen ${index+1}/${count} solved; Next was not confirmed (${response?.result?.reason||response?.error||'unknown'}).`,'normal');
+        break;
+      }
+    }
   } finally {$('auto').disabled=false;}
 }
 

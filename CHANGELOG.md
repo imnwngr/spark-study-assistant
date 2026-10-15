@@ -1,3 +1,10 @@
+## 0.7.7 — Verified multi-screen Solve (experimental)
+
+- Solve detects the currently visible `content_wrap_N` and validates a contiguous 0-based set of screen roots before attempting intra-activity progression.
+- One click solves the current screen, verifies complete QTI answers against live controls, and then uses Spark `forward` to advance to the next screen. Never uses `forward_lo` for automatic progression; stops on last screen.
+- If QTI answers are unavailable, the UI state is ambiguous, a screen cannot be verified, or navigation fails, it stops rather than skipping an unsolved screen.
+- Retains the adaptive wait/retry for long word sequences from v0.7.6. Live Spark persistence and next-screen behavior still require validation.
+
 ## v0.7.6 — Long sequence single-click continuation
 
 - Wait for Avallain sequence drag/placeholder to settle (bounded polling) before interpreting the resulting order.
