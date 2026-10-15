@@ -2,7 +2,7 @@
   'use strict';
   if (globalThis.__sparkStudyAssistantLoaded) return;
   globalThis.__sparkStudyAssistantLoaded = true;
-  let lastScan = { title: '', questions: [], refs: new Map(), applied:new Map(), submitted:false };
+  let lastScan = { title: '', questions: [], refs: new Map(), applied:new Map(), appliedChoiceIds:new Map(), submitted:false,activeRoot:null };
   let qtiCache = null;
   let qtiPending = null;
   const tidy = (v) => String(v || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
@@ -38,28 +38,51 @@
       return true;
     });
   }
-  // Wordbuilding often puts a shared word bank in a static content block.
-  // It provides context, but is not itself an answerable question.
-  function findWordBank(blocks, rubric) {
-    if (!/\b(?:word|words|phrase|phrases)\b[^.?!]{0,130}\bbox\b/i.test(rubric) &&
-        !/\b(?:word|words)\s*bank\b/i.test(rubric)) return { text: '', block: null };
-    const explicit = document.querySelector(
-      '.layout__content .wordbank, .layout__content .word-bank, .layout__content .word-box, .layout__content .wordbox, .layout__content [data-zone-type="wordbank"]'
-    );
-    if (explicit && !getControls(explicit).length) {
-      const value = tidy(explicit.innerText || explicit.textContent).slice(0, 350);
-      if (value) return { text: value, block: blocks.find(b => b === explicit || b.contains(explicit)) || null };
+  function activeContentRoot(){
+    const roots=[...document.querySelectorAll('.content-wrap[id^="content_wrap_"]')];
+    const visible=roots.filter(el=>!el.classList.contains('activity--hidden') && !el.hidden &&
+      !el.closest('[hidden],[inert]') && getComputedStyle(el).display!=='none');
+    return visible[0]||roots[0]||document;
+  }
+  function choiceGroup(block){
+    const controls=[...block.querySelectorAll('[role="checkbox"],[role="radio"]')]
+      .filter(el=>!el.closest('[hidden],[inert]') && !el.matches('[aria-hidden="true"]'));
+    if(!controls.length)return null;
+    const kind=controls[0].getAttribute('role')==='checkbox'?'multi':'choice';
+    if(controls.some(el=>el.getAttribute('role')!==(kind==='multi'?'checkbox':'radio')))return null;
+    const items=controls.map(el=>{
+      const match=(el.id||el.className||'').match(/(?:input-(?:checkbox|radio)-(?:s\d+-)?c|choice-c)(\d+)-(\d+)/);
+      const id=match?`C${match[1]}_${match[2]}`:'';
+      const label=tidy(el.innerText||el.textContent||
+        el.closest('label')?.innerText||el.parentElement?.querySelector('label')?.innerText||'');
+      return {node:el,id,label};
+    });
+    // QTI identifiers must be verifiable in the live DOM. Never infer from
+    // shuffled visual position or fabricated labels.
+    if(items.some(x=>!x.id)||new Set(items.map(x=>x.id)).size!==items.length)return null;
+    const groups=new Set(items.map(x=>x.id.split('_')[0]));
+    if(groups.size!==1)return null;
+    return {kind,items,options:items.map(x=>x.label||x.id),choiceIds:items.map(x=>x.id)};
+  }
+  // Bank words are per-screen. Do not accidentally take the hidden next page's pool.
+  function findWordBank(root,blocks,rubric){
+    const pool=[...root.querySelectorAll('.pool .static_word')].map(el=>tidy(el.textContent)).filter(Boolean);
+    if(pool.length)return {text:pool.join(' | '),block:null};
+    if(!/\b(?:word|words|phrase|phrases)\b[^.?!]{0,130}\bbox\b/i.test(rubric)&&
+       !/\b(?:word|words)\s*bank\b/i.test(rubric))return {text:'',block:null};
+    const explicit=root.querySelector('.wordbank,.word-bank,.word-box,.wordbox,[data-zone-type="wordbank"]');
+    if(explicit&&!getControls(explicit).length){
+      const value=tidy(explicit.innerText||explicit.textContent).slice(0,350);
+      if(value)return {text:value,block:blocks.find(b=>b===explicit||b.contains(explicit))||null};
     }
-    // When there are editable blocks, an unnumbered short block preceding
-    // them is a plausible word bank; never suppress blocks in static-only tasks.
-    const firstEditable = blocks.findIndex(b => getControls(b).length > 0);
-    if (firstEditable < 1) return { text: '', block: null };
-    for (const block of blocks.slice(0, firstEditable)) {
-      if (getControls(block).length || block.querySelector('.enum,[data-continuous-enumeration-id]')) continue;
-      const text = tidy(block.innerText || block.textContent);
-      if (text.length >= 5 && text.length <= 220 && !/[?.!]/.test(text)) return { text, block };
+    const firstEditable=blocks.findIndex(b=>getControls(b).length>0);
+    if(firstEditable<1)return {text:'',block:null};
+    for(const block of blocks.slice(0,firstEditable)){
+      if(getControls(block).length||block.querySelector('.enum,[data-continuous-enumeration-id]'))continue;
+      const text=tidy(block.innerText||block.textContent);
+      if(text.length>=5&&text.length<=220&&!/[?.!]/.test(text))return {text,block};
     }
-    return { text: '', block: null };
+    return {text:'',block:null};
   }
   function formatBlock(block, controls) {
     const clone = block.cloneNode(true);
@@ -87,45 +110,61 @@
       document.querySelector('.learningObject__heading')?.textContent ||
       document.title || 'Bài tập');
   }
-  function scan() {
-    const questions = [];
-    const refs = new Map();
-    const blocks = [...document.querySelectorAll('.layout__content .contentblock, .interaction .contentblock')]
-      .filter((n,i,a) => a.indexOf(n) === i);
-    const title = exerciseTitle();
-    const rubric = tidy(document.querySelector('.layout__rubric')?.textContent).slice(0,500);
-    const bank = findWordBank(blocks, rubric);
-    const sourceBlocks = blocks.length ? blocks.filter(b => b !== bank.block) :
-      [...document.querySelectorAll('.layout__content .interaction')].slice(0,3);
-    for (let b = 0; b < sourceBlocks.length; b++) {
-      const block = sourceBlocks[b];
-      const controls = getControls(block);
-      const context = formatBlock(block, controls);
-      if (!context) continue;
-      if (controls.length) {
-        controls.forEach((node,index) => {
-          const id = `q${questions.length + 1}`;
-          const kind = getKind(node);
-          const extra = around(context,index);
-          const localContext = context.replace(/\[\[\d+\]\]/g, token => token === `[[${index + 1}]]` ? "[[1]]" : "[other gap]");
-          const options = kind === 'dropdown' ? getOptions(node) : [];
-          const question = {id,kind,context,localContext,options,rubric,wordBank:bank.text,
+  function scan(){
+    const questions=[],refs=new Map();
+    const root=activeContentRoot();
+    const title=exerciseTitle();
+    const deferredCategory=/\|\s*(?:speaking|writing(?: skill)?)\s*\|/i.test(title);
+    const rubric=tidy(root.querySelector('.layout__rubric')?.textContent ||
+      document.querySelector('.layout__rubric')?.textContent).slice(0,500);
+    const blocks=[...root.querySelectorAll('.layout__content .contentblock,.interaction .contentblock')]
+      .filter((n,i,a)=>a.indexOf(n)===i);
+    const bank=findWordBank(root,blocks,rubric);
+    const sourceBlocks=blocks.length?blocks.filter(b=>b!==bank.block):
+      [...root.querySelectorAll('.layout__content .interaction')].slice(0,3);
+    const hasEditable=sourceBlocks.some(b=>getControls(b).length||(!deferredCategory&&choiceGroup(b)));
+    for(let b=0;b<sourceBlocks.length;b++){
+      const block=sourceBlocks[b];
+      const group=deferredCategory?null:choiceGroup(block);
+      if(group){
+        const id=`q${questions.length+1}`;
+        const question={id,kind:group.kind,context:tidy(block.innerText||block.textContent).slice(0,1200),
+          localContext:tidy(block.innerText||block.textContent).slice(0,1200),options:group.options,
+          choiceIds:group.choiceIds,rubric,wordBank:bank.text,hint:'',before:'',after:'',
+          block:b+1,position:1,applyable:true};
+        questions.push(question);
+        refs.set(id,{kind:group.kind,items:group.items});
+        continue;
+      }
+      const controls=getControls(block);
+      if(hasEditable&&!controls.length)continue; // e.g. static vocabulary reference before text gaps
+      const context=formatBlock(block,controls);
+      if(!context)continue;
+      if(controls.length){
+        controls.forEach((node,index)=>{
+          const id=`q${questions.length+1}`,kind=getKind(node),extra=around(context,index);
+          const localContext=context.replace(/\[\[\d+\]\]/g, token=>
+            token===`[[${index+1}]]`?'[[1]]':'[other gap]');
+          const options=kind==='dropdown'?getOptions(node):[];
+          questions.push({id,kind,context,localContext,options,rubric,wordBank:bank.text,
             hint:extra.hint,before:extra.before,after:extra.after,
-            block:b + 1,position:index + 1,applyable:true};
-          questions.push(question);
-          refs.set(id, {node,kind,options});
+            block:b+1,position:index+1,applyable:true});
+          refs.set(id,{node,kind,options});
         });
-      } else {
-        // Static exercises can still be answered/copied, but are not silently edited.
-        const id = `q${questions.length + 1}`;
-        const isOrder = /sequence\s*\d/i.test(context) || /\b(order|unscramble|reorder)\b/i.test(rubric);
-        const isCorrection = /\b(correction|correct|mistake|error)\b/i.test(rubric) || /grammar\s*1\s*\|\s*1/i.test(title);
-        questions.push({id, kind:isOrder?'order':isCorrection?'correction':'manual', context,
-          options:[], rubric,wordBank:bank.text,hint:'',before:'',after:'',block:b + 1,position:1, applyable:false});
+      }else{
+        const id=`q${questions.length+1}`;
+        const isMatch=Boolean(block.matches('.gap_match_view,.om-text-gap,.ll_view')||block.closest('.gap_match_view,.om-text-gap,.ll_view')||block.querySelector('.gap_match_view,.om-text-gap,.ll_view'));
+        const isOrder=/sequence\s*\d/i.test(context)||/\b(order|unscramble|reorder)\b/i.test(rubric);
+        const isCorrection=/\b(correction|correct|mistake|error)\b/i.test(rubric)||/grammar\s*1\s*\|\s*1/i.test(title);
+        questions.push({id,kind:isMatch?'match':isOrder?'order':isCorrection?'correction':'manual',
+          context,options:[],rubric,wordBank:bank.text,hint:'',before:'',after:'',
+          block:b+1,position:1,applyable:false});
       }
     }
-    lastScan = {title,questions,refs,applied:new Map(),submitted:false};
-    return {title,questions,frameUrl:location.origin + location.pathname, hasExercise:questions.length > 0};
+    const screenMatch=(root.id||'').match(/content_wrap_(\d+)/);
+    const screenIndex=screenMatch?Number(screenMatch[1]):0;
+    lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),submitted:false,screenIndex,activeRoot:root};
+    return {title,questions,screenIndex,frameUrl:location.origin+location.pathname,hasExercise:questions.length>0};
   }
   async function readQTI(expectedIds) {
     const questions = lastScan.questions;
@@ -137,6 +176,8 @@
     const script = [...document.querySelectorAll('script[src]')].find(el=>{
       try{return new URL(el.src).pathname.endsWith('/data.js');}catch{return false;}
     });
+    if(/\|\s*(?:speaking|writing(?: skill)?)\s*\|/i.test(lastScan.title))
+      return {answers:[],reason:'deferredCategory'};
     if(!script || !globalThis.SparkQTI)return {answers:[],reason:'noDataScript'};
     const url = new URL(script.src);
     // Never load other origins or user-supplied endpoints.
@@ -206,7 +247,37 @@
     return {status: rendered.includes(normalized(match)) || selected ? 'filled':'uncertain',
       detail:rendered.includes(normalized(match)) || selected ? 'Đã nhận diện lựa chọn.':'Đã nhấn lựa chọn nhưng không xác nhận được trạng thái; kiểm tra trên trang.'};
   }
+  function isChecked(node){
+    const input=node.querySelector('input[type="checkbox"],input[type="radio"]');
+    return node.hasAttribute('aria-checked') ? node.getAttribute('aria-checked')==='true' : Boolean(input?.checked);
+  }
+  async function setChoice(group,answer,selectedIds){
+    const parts=Array.isArray(selectedIds)&&selectedIds.length?selectedIds:
+      String(answer).split(' | ').map(tidy).filter(Boolean).map(label=>{
+        const hits=group.items.filter(item=>normalized(item.label)===normalized(label));
+        return hits.length===1?hits[0].id:'';
+      });
+    if(!parts.length||parts.some(id=>!id)||new Set(parts).size!==parts.length||
+      parts.some(id=>!group.items.some(x=>x.id===id))||
+      (group.kind==='choice'&&parts.length!==1))
+      return {status:'skipped',detail:'QTI choice identifiers do not match visible controls.'};
+    const desired=new Set(parts);
+    if(group.kind==='choice'){
+      const selected=group.items.find(item=>desired.has(item.id));
+      if(!isChecked(selected.node)){selected.node.click();await wait(100);}
+    } else {
+      for(const item of group.items){
+        const target=desired.has(item.id);
+        if(isChecked(item.node)!==target){item.node.click();await wait(90);}
+      }
+    }
+    const verified=group.items.every(item=>isChecked(item.node)===desired.has(item.id));
+    return {status:verified?'filled':'uncertain',detail:verified?'Choice state verified.':'Could not verify selection state.'};
+  }
   async function apply(answers) {
+    if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){
+      return (Array.isArray(answers)?answers:[]).map(a=>({id:a.id,status:'skipped',detail:'Screen changed; scan again.'}));
+    }
     const results = [];
     for (const response of answers) {
       const id = response.id;
@@ -214,12 +285,19 @@
       const found = lastScan.refs.get(id);
       if (!value) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Không có đáp án.'});continue;}
       if (!found) {lastScan.applied.delete(id);results.push({id,status:'manual',detail:'Dạng này chưa hỗ trợ tương tác tự động; dùng đáp án xem trước.'});continue;}
-      if (!document.contains(found.node)) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
+      if (!(found.items?found.items.every(item=>document.contains(item.node)):document.contains(found.node))) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
       try {
         let outcome;
-        if (found.kind === 'dropdown') outcome=await setDropdown(found.node,value);
+        if(found.kind==='dropdown')outcome=await setDropdown(found.node,value);
+        else if(found.kind==='choice'||found.kind==='multi')outcome=await setChoice(found,value,response.selectedIds);
         else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
-        if(outcome.status==='filled') lastScan.applied.set(id,value);else lastScan.applied.delete(id);
+        if(outcome.status==='filled'){
+          lastScan.applied.set(id,value);
+          if(found.items){
+            const ids=found.items.filter(item=>isChecked(item.node)).map(item=>item.id);
+            lastScan.appliedChoiceIds.set(id,ids);
+          }
+        }else{lastScan.applied.delete(id);lastScan.appliedChoiceIds.delete(id);}
         results.push({id,...outcome});
       } catch(error) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:String(error?.message || error)});}
     }
@@ -239,6 +317,8 @@
     return {checkAvailable:actionable(check), answerStates};
   }
   async function submitNext(expected,goNext) {
+    if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot)
+      return {submitted:false,reason:'submitChanged'};
     if(lastScan.submitted)return {submitted:false,reason:'submitAlready'};
     if(!Number.isInteger(expected)||expected!==lastScan.questions.length || !expected ||
       lastScan.questions.some(q=>!q.applyable)||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
@@ -246,9 +326,14 @@
     }
     // A manual change after filling invalidates the verification: re-read actual DOM values.
     const consistent=[...lastScan.refs.entries()].every(([id,ref])=>{
-      if(!document.contains(ref.node))return false;
+      if(!(ref.items?ref.items.every(item=>document.contains(item.node)):document.contains(ref.node)))return false;
       const wanted=normalized(lastScan.applied.get(id));
       if(!wanted)return false;
+      if(ref.kind==='choice'||ref.kind==='multi'){
+        const wanted=lastScan.appliedChoiceIds?.get(id);
+        if(!wanted?.length)return false;
+        return ref.items.every(item=>isChecked(item.node)===wanted.includes(item.id));
+      }
       if(ref.kind==='dropdown'){
         if(ref.node.matches('select'))return normalized(ref.node.selectedOptions[0]?.textContent)===wanted;
         const button=ref.node.matches('[role="combobox"]')?ref.node:ref.node.querySelector('[role="combobox"],button[data-event="toggle"]');

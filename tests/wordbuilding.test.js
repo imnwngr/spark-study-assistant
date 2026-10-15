@@ -68,7 +68,7 @@ test('Wordbuilding word bank is passed to AI fallback and shown in popup',()=>{
   const popup=fs.readFileSync(path.join(base,'popup.js'),'utf8');
   const provider=fs.readFileSync(path.join(base,'providers.js'),'utf8');
   assert.match(content,/function findWordBank\(/);
-  assert.match(content,/blocks\.filter\(b => b !== bank\.block\)/);
+  assert.match(content,/blocks\.filter\(b=>b!==bank\.block\)/);
   assert.match(popup,/wordBank:q\.wordBank\|\|''/);
   assert.match(popup,/else if\(q\.wordBank\)/);
   assert.match(provider,/wordBank field/);

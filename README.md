@@ -8,9 +8,9 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.6.1-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.0-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
-  [![Tests](https://img.shields.io/badge/tests-95_passing-2A946A?style=flat-square)](#testing)
+  [![Tests](https://img.shields.io/badge/tests-106_passing-2A946A?style=flat-square)](#testing)
 
   [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
@@ -30,21 +30,23 @@
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
 
-## What's new in 0.6.1 — Wordbuilding text gaps
+## What's new in 0.7.0 — QTI adapters
 
-**Shared word banks are now handled as context.** For exercises such as *1b | Wordbuilding | 1*, the scanner recognizes an unnumbered static word bank, prevents it from being counted as an extra question and displays its vocabulary next to the text-entry gaps. The AI fallback also receives the bank; it is no longer asked to guess without the words shown on the page.
+The QTI-first reader now handles **single-choice radios, multiple-choice checkboxes, shuffled option IDs, text-entry variants and multiple assessment screens**, in addition to existing dropdowns and text blanks. The source of truth is still the published `correctResponse` declaration, validated against the current screen and its controls.
 
-**More conservative QTI text answers.** The parser only accepts single explicit `string` responses for typed blanks, and checks that *play/do/go + phrase* tasks receive a full collocation rather than an isolated verb. The extension does not guess mappings for drag/drop, `gapMatchInteraction` or unfamiliar custom controls.
+The update was informed by 13 read-only exercise structure captures. The collection itself is **not included in the repository**. Radio and checkbox scanning/clicking were verified in an isolated Chromium fixture; authenticated Spark sessions still need hands-on validation.
 
-**Live-site compatibility still requires evidence.** The six-gap workflow passed a Chromium simulation using HTML and QTI text-entry markup, **not** a capture of this actual Spark exercise. To see what the live exercise really exposes, run the read-only [`Wordbuilding inspector`](tools/inspect-wordbuilding.js) in Dashboard DevTools Console, then review and share the JSON. [Wordbuilding guide](docs/WORD_BUILDING.md).
+**Review-only drag/drop:** `gapMatchInteraction` pairs can now be read and shown as suggested mappings, but automated dragging is disabled until live UI behavior is established. **Speaking and all Writing tasks (including Writing skill)** are explicitly deferred and do not receive the new adapter.
 
-## Previous release: 0.6.0
+**Wordbuilding and text variants:** QTI may encode `play the piano|the piano` as alternatives, or return a partial-word suffix such as `tay`. The reader chooses a compatible value *for the blank*, never enters the literal `|`-joined string, and does not expand suffixes into full words. Multi-screen activities choose XML by question context and abstain on ambiguous matches.
 
-**QTI-first solving.** Some published Spark exercises include explicit answer declarations inside an XML assessment packaged in `data.js`. This version reads those declarations locally and maps them to visible controls before considering an AI request.
+[**Adapter compatibility & safety**](docs/QTI_ADAPTERS.md) · [**QTI reader internals**](docs/QTI_READER.md) · [**Changelog**](CHANGELOG.md)
 
-**Less work for Chrome.** Nested answer cards no longer create individual blurred compositor layers. The shared glass material uses a lower blur radius; reflective pointer highlights are animation-frame limited, and the popup renders question cards in a single DOM batch.
+## Previous releases
 
-**Existing workflows stay intact.** Multiple AI profiles, model comparison, manual answer editing, guarded filling and the opt-in check-and-next action all remain available.
+- **0.6.1** — Shared Wordbuilding banks, stricter QTI text validation, and diagnostic tooling.
+- **0.6.0** — Initial QTI-first reading and reduced UI compositing cost.
+- **0.5.x** — Glass appearance, adaptable color studio and popup size fix.
 
 ## Answer pipeline
 
@@ -67,7 +69,7 @@ flowchart TD
   L --> M[Optional confirmed Check & Next]
 ```
 
-The QTI reader is **not** a general answer-key scraper. See [implementation notes](docs/QTI_READER.md). It accepts an answer only when the client-side assessment has an explicit `responseDeclaration / correctResponse` and the `responseIdentifier` plus **entire choice set** match the visible exercise. The initial release supports QTI inline/single-choice dropdowns and explicitly declared text-entry responses. Unknown formats (reordering, drag-and-drop, unusual scoring rules) remain unresolved and use the existing fallback.
+The QTI reader is **not** a general answer-key scraper. See [implementation notes](docs/QTI_READER.md). It accepts an answer only when the client-side assessment has an explicit `responseDeclaration / correctResponse` and the `responseIdentifier` plus **entire choice set** match the visible exercise. The adapter supports dropdown, radio, checkbox and explicit text-entry declarations. Matching pairs can be displayed for review only. Reordering, automated drag/drop, deferred Speaking/Writing and custom controls remain unsupported or unchanged.
 
 No downloaded script is evaluated by the QTI parser. The extension parses the JSON-escaped XML strings in `data.js`, with origin, size and structural checks. QTI content stays in the browser. **Only questions not matched locally are sent to your chosen AI provider.**
 
@@ -82,7 +84,7 @@ No downloaded script is evaluated by the QTI parser. The extension parses the JS
 
 | | Capability |
 |---|---|
-| ◈ | **QTI-first reader** for unambiguous, published answer declarations |
+| ◈ | **QTI-first adapters** for dropdowns, radio, checkbox and text answers; view-only gap pairs |
 | ↗ | **AI fallback** with independent OpenAI-compatible profiles and model comparison |
 | ✓ | **Review & edit** each response before filling |
 | ⌁ | **Guarded filling** for supported dropdown and text controls |
@@ -132,7 +134,7 @@ spark-study-assistant/
 ├── i18n.js                       # UI copy for four languages
 │
 ├── content.js                    # Per-iframe DOM scan, fill and check/next
-├── qti.js                        # Safe data.js/XML parser & response mapping
+├── qti.js                        # Safe QTI XML parsing, multi-screen & ID adapters
 ├── background.js                 # Orchestrates fallback API requests
 ├── providers.js                  # Provider profiles, schemas and comparison
 ├── solver.js                     # Small legacy ruleset (not a local LLM)
@@ -144,6 +146,7 @@ spark-study-assistant/
 │   ├── screenshots/              # UI previews (illustrative)
 │   ├── AUTOMATION_DISCOVERY.md   # Privacy-safe DOM investigation
 │   ├── QTI_READER.md            # Reader design, validation and limits
+│   ├── QTI_ADAPTERS.md          # Radio, checkbox, text, multi-screen, pair previews
 │   ├── WORD_BUILDING.md          # Shared bank + text-gap compatibility
 │   ├── GLASS_DESIGN.md           # Visual/material decisions
 │   └── ...                       # Historical design/research notes
@@ -151,6 +154,8 @@ spark-study-assistant/
 │   └── inspect-wordbuilding.js  # Read-only DOM/QTI discovery console script
 └── tests/                        # Zero-dependency Node regression tests
     ├── qti.test.js               # XML answers, mismatches and fallback
+    ├── qti-adapters.test.js      # New interaction and multi-screen regression cases
+    ├── browser-adapters.html     # Isolated Chromium smoke-test fixture
     ├── wordbuilding.test.js      # Collocation guards and bank handoff
     ├── providers.test.js
     ├── solver.test.js
@@ -171,7 +176,7 @@ Run the regression suite from PowerShell (single paste):
 }
 ```
 
-The 95 tests cover six text-entry collocations and mapping five sample answers to QTI choice identifiers, text responses, stale choice guards, provider behavior, UI structure and appearance. A separate Chromium integration check validated QTI XML parsing with the browser's native `DOMParser`. These tests do **not** guarantee that every live Spark assignment uses the same XML format.
+The **106 automated Node tests** cover existing functionality and new radio, checkbox, alternatives, suffix-only answers, ambiguous multi-screen XML selection and gap-pair previews. An isolated Chromium test also verified DOM scanning and clicking one radio plus two checkboxes. These are synthetic tests, **not** an authenticated Spark compatibility guarantee.
 
 ## Permissions & safety
 

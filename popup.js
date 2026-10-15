@@ -87,14 +87,14 @@ function render() {
     const poly=document.createElementNS('http://www.w3.org/2000/svg','path');poly.setAttribute('d','m6 9 6 6 6-6');chevron.append(poly);
     end.append(badge,chevron);head.append(main,end);card.append(head);
     const body=el('div','question-body');
-    body.append(el('span','question-kind',t({dropdown:'kindDropdown',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
+    body.append(el('span','question-kind',t({dropdown:'kindDropdown',choice:'kindDropdown',multi:'kindDropdown',match:'kindManual',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
     body.append(el('p','question-text',q.localContext||q.context));
     if(q.options?.length) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.options.join(' · ')}`));
     else if(q.wordBank) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.wordBank}`));
     const line=el('div','answer-line');
     const lbl=el('label','',t('answer'));lbl.setAttribute('for','answer-'+q.id);
     let input;
-    if(q.options?.length) {
+    if(q.options?.length && q.kind!=='multi' && q.kind!=='match') {
       input=el('select','answer-input');
       const blank=el('option','',`— ${t('chooseAnswer')} —`);blank.value=''; input.append(blank);
       for(const opt of q.options){const optEl=el('option','',opt);optEl.value=opt;input.append(optEl);}
@@ -104,9 +104,9 @@ function render() {
     input.id='answer-'+q.id;
     input.addEventListener('input',()=>{
       const prev=state.answers.get(q.id)||{};
-      state.answers.set(q.id,{...prev,id:q.id,answer:input.value,confidence:'high',source:'user',explanation:t('manuallyEdited')});
+      state.answers.set(q.id,{id:q.id,answer:input.value,confidence:'high',source:'user',explanation:t('manuallyEdited')});
       updateCardState(q.id,input.value);state.lastApplyVerified=false;$('submitNext').disabled=true;
-      $('apply').disabled=false;
+      $('apply').disabled=!state.questions.some(item=>item.applyable && state.answers.get(item.id)?.answer);
     });
     line.append(lbl,input);body.append(line);
     const hint=el('p','explanation');hint.id='explain-'+q.id;
@@ -154,7 +154,7 @@ async function solve() {
   $('solve').disabled=true;progress('solve');status(t('solving'));
   try {
     const all=state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
-      localContext:q.localContext||'',options:q.options,rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
+      localContext:q.localContext||'',options:q.options,choiceIds:q.choiceIds||[],rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
     const payload={title:state.title,uiLanguage:I.language,questions:all};
     let qti=[];
     try {
@@ -162,10 +162,18 @@ async function solve() {
       if(read?.ok && Array.isArray(read.result?.answers))qti=read.result.answers;
     } catch { /* QTI is best effort; a missed key must not block AI fallback. */ }
     const trusted=new Map();
+    let labelsUpdated=false;
     for(const answer of qti){
       const question=all.find(q=>q.id===answer.id);
       if(!question || trusted.has(answer.id) || !answer.answer)continue;
-      if(question.options?.length && !question.options.some(opt=>normalized(opt)===normalized(answer.answer)))continue;
+      if(['choice','multi'].includes(question.kind)){
+        if(!answer.selectedIds?.length || !question.choiceIds?.length ||
+          answer.selectedIds.some(id=>!question.choiceIds.includes(id)) ||
+          !Array.isArray(answer.choiceOptions) || answer.choiceOptions.length!==question.choiceIds.length)continue;
+        question.options=answer.choiceOptions;
+        const live=state.questions.find(q=>q.id===question.id);
+        if(live){live.options=answer.choiceOptions;labelsUpdated=true;}
+      } else if(question.options?.length && !question.options.some(opt=>normalized(opt)===normalized(answer.answer)))continue;
       trusted.set(answer.id,answer);
     }
     const remaining=all.filter(q=>!trusted.has(q.id));
@@ -187,9 +195,10 @@ async function solve() {
       if(candidate)state.answers.set(q.id,candidate);
     }
     state.solved=true;
+    if(labelsUpdated)render();
     updateAnswers();
     const complete=all.filter(q=>state.answers.get(q.id)?.answer).length;
-    $('apply').disabled=complete===0;
+    $('apply').disabled=!all.some(q=>q.applyable && state.answers.get(q.id)?.answer);
     if(complete>0)progress('apply');
     const label=trusted.size===all.length?t('qtiLabel'):
       trusted.size?t('qtiMixed'):
@@ -232,8 +241,10 @@ async function applyAnswers() {
     const answer=String(a?.answer||'').trim();
     if(!answer || (a.source!=='user'&&a.confidence==='low')) {missing++;continue;}
     // Double check all option-backed answers before trying to click.
-    if(q.options?.length && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
-    answers.push({id:q.id,answer});
+    if(q.options?.length && q.kind!=='multi' && q.kind!=='match' && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
+    if(q.kind==='multi' && a.source==='qti' && (!Array.isArray(a.selectedIds)||
+      a.selectedIds.some(id=>!q.choiceIds?.includes(id)))){missing++;continue;}
+    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{})});
   }
   if(!answers.length){status(t('notReady'),'error');return;}
   $('apply').disabled=true;progress('apply');status(t('filling'));

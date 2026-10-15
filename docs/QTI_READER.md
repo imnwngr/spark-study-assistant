@@ -18,17 +18,16 @@ This is evidence for **that activity**, not evidence that all Spark exercises pu
 6. `popup.js` retains QTI matches and calls the selected fallback mode with **only the unresolved questions**.
 7. User editing, application verification and explicit Check & Next continue to use the existing guarded workflow.
 
-## Supported / unsupported
+## Current adapter coverage (v0.7.0)
 
-| XML interaction | Current behavior |
-|---|---|
-| `inlineChoiceInteraction` | Map single-choice answer by identifier and exact choice text |
-| `choiceInteraction` | Supports mapping only when the rendered control is a compatible single dropdown |
-| `textEntryInteraction` / `extendedTextInteraction` | Read a single explicit declared text answer (if rendered as a text input) |
-| `orderInteraction`, `gapMatchInteraction`, `matchInteraction` | No automatic QTI mapping; use fallback |
-| XML with missing/duplicate IDs, multiple accepted choices, shuffled UI options without text agreement | Reject or fall back |
+See [QTI adapter reference](QTI_ADAPTERS.md) for the per-interaction matrix, real inspector evidence, accepted text variants, and multi-screen safeguards.
 
-The XML `correctResponse` field represents the **published assessment declaration**. The extension does not claim to reproduce every scoring rule, text normalization policy, or final server grading operation.
+- **Supported for verified scan and fill (simulated browser):** dropdown, radio single-choice, checkbox multiple-choice, explicit text blanks.
+- **Supported for answer preview only:** `gapMatchInteraction` with directed QTI pairs. Drag/drop is not enabled.
+- **Deferred:** Speaking and all Writing categories, including Writing skill.
+- **Unresolved:** order interactions and custom interaction widgets without proven identifier/control mapping.
+
+A `correctResponse` value represents a published assessment declaration, not a guarantee about every normalization or grading rule. QTI mapping never skips live DOM validation.
 
 ## Safeguards
 

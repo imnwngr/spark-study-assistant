@@ -8,9 +8,9 @@
   Tiện ích Chrome giúp đọc, xem lại và điền đáp án cho những dạng bài được hỗ trợ trên National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#cài-đặt)
-  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.6.1-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.0-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-thuần-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#cấu-trúc-dự-án)
-  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-95_đạt-2A946A?style=flat-square)](#kiểm-thử)
+  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-106_đạt-2A946A?style=flat-square)](#kiểm-thử)
 
   [**Cài đặt**](#cài-đặt) · [**Cơ chế tìm đáp án**](#cơ-chế-tìm-đáp-án) · [**Cấu trúc**](#cấu-trúc-dự-án) · [**English**](README.md)
 </div>
@@ -27,21 +27,23 @@
 > [!NOTE]
 > Các ảnh giao diện sử dụng **dữ liệu mô phỏng**. Bộ đọc QTI đã được kiểm thử trong Chromium với dữ liệu XML mô phỏng năm câu lựa chọn và sáu ô nhập văn bản; chưa thể khẳng định mọi dạng bài hoặc mọi tài khoản Spark đều tương thích.
 
-## Có gì mới ở v0.6.1 — Wordbuilding
+## Có gì mới ở v0.7.0 — Mở rộng QTI Adapter
 
-**Nhận diện ngân hàng từ dùng chung:** Ở dạng *1b | Wordbuilding | 1*, extension tách khối từ vựng tĩnh khỏi sáu câu hỏi điền từ, giữ nguyên ngân hàng từ trong popup và chuyển nó vào ngữ cảnh của AI dự phòng. Điều này khắc phục tình trạng khối từ vựng bị đếm thành câu hỏi hoặc AI không nhận được danh sách cụm từ.
+Bộ đọc QTI hiện hỗ trợ **radio (chọn một), checkbox (chọn nhiều), lựa chọn đảo thứ tự, nhiều cách viết đáp án văn bản và bài có nhiều màn hình**, ngoài dropdown và ô chữ đã có. Mỗi đáp án phải được xác minh bằng ID và cấu trúc QTI trên màn hiện tại.
 
-**Ánh xạ QTI ô văn bản an toàn hơn:** Chỉ sử dụng `correctResponse` khi khai báo một giá trị `string` đơn, có tương tác text tương ứng. Với dạng *play/do/go + cụm từ*, đáp án một từ đơn lẻ sẽ không được coi là hoàn chỉnh. Dạng kéo thả hoặc `gapMatchInteraction` chưa được tự suy diễn.
+Bản nâng cấp dựa trên **13 báo cáo quét cấu trúc thực**, nhưng dữ liệu bài tập gốc không được đưa vào repository. Bộ quét và thao tác radio/checkbox đã chạy qua thử nghiệm Chromium cô lập; vẫn cần kiểm tra trên Spark đã đăng nhập.
 
-**Giới hạn:** Tôi đã thử thành công luồng sáu ô trong Chromium bằng **HTML và QTI mô phỏng**. Chưa có HTML/QTI thật của bài Wordbuilding này, nên chưa thể cam kết tự điền đúng trên Spark. Để kiểm tra, dán tệp [`tools/inspect-wordbuilding.js`](tools/inspect-wordbuilding.js) vào Console của Dashboard, xem lại JSON rồi gửi báo cáo. Xem [hướng dẫn Wordbuilding](docs/WORD_BUILDING.md).
+**Kéo-thả:** Bộ đọc có thể hiện các cặp từ/ô từ `gapMatchInteraction` để người dùng xem, nhưng **chưa tự kéo thả**. **Speaking và toàn bộ Writing (kể cả Writing skill)** được giữ nguyên và không bật adapter mới trong phiên bản này.
 
-## Phiên bản trước: v0.6.0
+**Wordbuilding:** Đáp án `play the piano|the piano` được hiểu là các biến thể hợp lệ, **không điền nguyên chuỗi có dấu `|`**. Các ô chỉ thiếu phần cuối từ như `s___` vẫn được điền chính xác `tay`, không phải `stay`. Với XML nhiều màn trùng Response ID, bộ đọc so ngữ cảnh câu trước khi quyết định; nếu không phân biệt được sẽ không đoán.
 
-**Ưu tiên QTI:** Một số bài tập Spark công bố khai báo đáp án đúng trong XML nhúng vào tệp `data.js`. Extension tìm và đối chiếu các khai báo này với lựa chọn đang hiển thị trên trang **trước khi** gửi yêu cầu AI.
+[**Bảng tương thích & an toàn**](docs/QTI_ADAPTERS.md) · [**Kỹ thuật QTI**](docs/QTI_READER.md) · [**Changelog**](CHANGELOG.md)
 
-**Mượt hơn:** Các thẻ câu hỏi con không còn áp dụng nhiều lớp làm mờ riêng biệt. Độ mờ kính được giảm hợp lý, hiệu ứng ánh sáng được giới hạn theo từng khung hình và danh sách câu hỏi được dựng vào DOM một lần.
+## Các phiên bản trước
 
-**Không mất tính năng cũ:** Vẫn hỗ trợ nhiều nhà cung cấp AI, so sánh mô hình, sửa đáp án thủ công, tự điền có xác minh và thao tác kiểm tra/chuyển bài khi người dùng xác nhận.
+- **0.6.1** — Ngân hàng từ Wordbuilding và kiểm tra đáp án text nghiêm ngặt.
+- **0.6.0** — Đọc QTI trước API và tối ưu độ mượt.
+- **0.5.x** — Liquid Glass, Color Studio và sửa kích thước popup.
 
 ## Cơ chế tìm đáp án
 
@@ -64,7 +66,7 @@ flowchart TD
   L --> M[Tùy chọn Check & Next có xác nhận]
 ```
 
-Bộ đọc QTI **không** lấy đáp án bằng cách đoán tên trường (xem [tài liệu kỹ thuật](docs/QTI_READER.md)). Chỉ chấp nhận kết quả nếu XML có `responseDeclaration / correctResponse`, `responseIdentifier` hợp lệ và **toàn bộ danh sách lựa chọn** trùng với bài đang hiển thị. Hiện hỗ trợ lựa chọn đơn dạng dropdown và đáp án văn bản được khai báo tường minh. Các dạng sắp xếp/kéo thả hoặc có quy tắc chấm phức tạp chưa được tự suy diễn.
+Bộ đọc QTI **không** lấy đáp án bằng cách đoán tên trường (xem [tài liệu kỹ thuật](docs/QTI_READER.md)). Chỉ chấp nhận kết quả nếu XML có `responseDeclaration / correctResponse`, `responseIdentifier` hợp lệ và **toàn bộ danh sách lựa chọn** trùng với bài đang hiển thị. Hỗ trợ dropdown, radio, checkbox và ô nhập văn bản khi QTI khớp chắc chắn. Kéo-thả chỉ hiện cặp đáp án để xem, chưa tự thao tác; Speaking/Writing chưa mở rộng.
 
 Bộ đọc **không chạy/eval mã `data.js`**: chỉ phân tích chuỗi XML đã mã hóa trong nội dung JavaScript, với giới hạn origin, kích thước và cấu trúc. Dữ liệu QTI xử lý trong trình duyệt; **chỉ câu chưa ánh xạ được mới gửi tới API AI đã chọn**.
 
@@ -79,7 +81,7 @@ Bộ đọc **không chạy/eval mã `data.js`**: chỉ phân tích chuỗi XML 
 
 | | Chức năng |
 |---|---|
-| ◈ | **Đọc QTI trước**, ánh xạ ID và đáp án thực tế |
+| ◈ | **QTI Adapter**, gồm dropdown, radio, checkbox, text; xem cặp kéo-thả |
 | ↗ | **AI dự phòng**: nhiều hồ sơ API và so sánh mô hình |
 | ✓ | **Xem và sửa đáp án** trước khi điền |
 | ⌁ | **Điền có kiểm tra** với dropdown/ô nhập hỗ trợ |
@@ -136,6 +138,7 @@ spark-study-assistant/
 ├── docs/
 │   ├── screenshots/              # Ảnh giao diện minh họa
 │   ├── AUTOMATION_DISCOVERY.md   # Hướng dẫn thu thập DOM an toàn
+│   ├── QTI_ADAPTERS.md          # Tương thích QTI theo loại bài
 │   ├── QTI_READER.md            # Kiến trúc, kiểm tra và giới hạn QTI
 │   ├── WORD_BUILDING.md          # Ngân hàng từ và ô điền văn bản
 │   ├── GLASS_DESIGN.md           # Quyết định về chất liệu/giao diện
@@ -143,6 +146,8 @@ spark-study-assistant/
 ├── tools/
 │   └── inspect-wordbuilding.js  # Lệnh Console chẩn đoán chỉ đọc
 └── tests/                        # Kiểm thử Node không cần thư viện ngoài
+    ├── qti-adapters.test.js      # Radio / checkbox / nhiều màn
+    ├── browser-adapters.html     # Bài thử Chromium cô lập
     ├── qti.test.js               # XML, đáp án, lỗi ánh xạ, API dự phòng
     ├── wordbuilding.test.js      # Ngữ cảnh ngân hàng từ và ô điền
     ├── providers.test.js
@@ -164,7 +169,7 @@ Trên PowerShell, chạy một lần:
 }
 ```
 
-Bộ 95 bài kiểm thử xác nhận cách ghép đáp án QTI cho năm câu mẫu, xử lý đầu vào không khớp, câu văn bản, phương án dự phòng và giao diện. Ngoài Node, parser đã được thử với `DOMParser` thật trên Chromium. **Kết quả này chưa thay thế thử nghiệm thực tế với từng dạng bài Spark.**
+Bộ **106 bài kiểm thử Node** kiểm tra mapping QTI, radio, checkbox, phương án text thay thế, bài nhiều màn, ô chỉ điền phần còn thiếu, API dự phòng và giao diện. Bài thử Chromium riêng xác nhận quét/chọn radio, checkbox và **từ chối điền vào màn cũ** sau khi chuyển màn. Đây là các bài thử mô phỏng; **chưa thay thế thử nghiệm Spark đang đăng nhập.**
 
 ## Quyền truy cập và giới hạn
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.7.0 — Verified QTI adapters and multi-screen safety
+
+- Implement scanner and verified click adapters for Spark's native radio/checkbox groups, matching C-group identifiers instead of shuffled visual positions.
+- Extend QTI parsing to checkbox multi-select, text alternatives (`|` and multiple QTI values), exact partial-word gaps, and review-only `gapMatchInteraction` pairs.
+- Scope DOM scanning to the active screen, separate QTI XML documents by question text and abstain when assessment mapping is ambiguous.
+- Keep Speaking and all Writing categories, including Writing skill, outside the new adapter by request.
+- Preserve provider/API fallback, existing customization, and confirmed submission workflow. Never auto-drag unknown controls.
+- Add QTI adapter guide, update both READMEs and exercise-fixture coverage. 106 Node regression tests plus an isolated Chromium radio/checkbox smoke test; **live authenticated Spark still needs verification**.
+
+
 ## v0.6.1 — Wordbuilding shared banks & strict text QTI
 
 - Add conditional shared-word-bank recognition for exercises that explicitly ask for words or phrases from a box. Exclude the unnumbered vocabulary bank from question counts and preserve its terms in each editable blank.

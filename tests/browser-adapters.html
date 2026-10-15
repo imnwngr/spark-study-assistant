@@ -1,0 +1,22 @@
+<!doctype html><html><meta charset="utf-8"><body><h1 class="learningObject__title">1b | Listening | Test</h1>
+<div class="content-wrap" id="content_wrap_0"><div class="layout__rubric">Choose the correct options.</div><div class="layout__content">
+<div class="contentblock"><p>Pick one</p><div role="radio" id="input-radio-s0-c0-2" aria-checked="false">Third<input type="radio"></div><div role="radio" id="input-radio-s0-c0-0" aria-checked="false">First<input type="radio"></div><div role="radio" id="input-radio-s0-c0-1" aria-checked="false">Second<input type="radio"></div></div>
+<div class="contentblock"><p>Pick many</p><div role="checkbox" id="input-checkbox-s0-c1-2" aria-checked="false">Blue<input type="checkbox"></div><div role="checkbox" id="input-checkbox-s0-c1-1" aria-checked="false">Green<input type="checkbox"></div><div role="checkbox" id="input-checkbox-s0-c1-0" aria-checked="false">Red<input type="checkbox"></div></div>
+</div></div><div class="content-wrap activity--hidden" id="content_wrap_1" style="display:none"><div class="layout__content"><div class="contentblock"><input type="text"></div></div></div>
+<script>
+window.chrome={runtime:{onMessage:{addListener(fn){window.__listener=fn}}}};
+for(const node of document.querySelectorAll('[role="radio"],[role="checkbox"]'))node.addEventListener('click',()=>{const role=node.getAttribute('role');if(role==='radio')for(const x of node.parentNode.querySelectorAll('[role="radio"]')){const flag=x===node;x.setAttribute('aria-checked',String(flag));x.querySelector('input').checked=flag;}else{const flag=node.getAttribute('aria-checked')!=='true';node.setAttribute('aria-checked',String(flag));node.querySelector('input').checked=flag;}});
+</script><script src="../qti.js"></script><script src="../content.js"></script>
+<script>
+(async()=>{
+ const send=message=>new Promise(resolve=>window.__listener(message,null,resolve));
+ const scan=await send({type:'SPARK_SCAN'});
+ const apply=await send({type:'SPARK_APPLY',answers:[{id:'q1',answer:'Second',selectedIds:['C0_1']},{id:'q2',answer:'Red | Blue',selectedIds:['C1_0','C1_2']}]});
+ const checked=[...document.querySelectorAll('[aria-checked="true"]')].map(n=>n.id);
+ document.getElementById('content_wrap_0').classList.add('activity--hidden');document.getElementById('content_wrap_0').style.display='none';
+ document.getElementById('content_wrap_1').classList.remove('activity--hidden');document.getElementById('content_wrap_1').style.display='block';
+ const stale=await send({type:'SPARK_APPLY',answers:[{id:'q1',answer:'First',selectedIds:['C0_0']}]});
+ const r={questions:scan.result.questions.map(x=>({kind:x.kind,ids:x.choiceIds,options:x.options})),apply:apply.result,checked,stale:stale.result};
+ document.body.append(Object.assign(document.createElement('pre'),{id:'test-result',textContent:JSON.stringify(r)}));
+})().catch(e=>document.body.append(Object.assign(document.createElement('pre'),{id:'test-error',textContent:String(e)})));
+</script></body></html>
