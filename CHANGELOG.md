@@ -1,3 +1,10 @@
+## v0.7.6 — Long sequence single-click continuation
+
+- Wait for Avallain sequence drag/placeholder to settle (bounded polling) before interpreting the resulting order.
+- Continue reordering all remaining tokens in the same Solve click; retry an unaccepted move at most once, stopping safely if the widget does not react.
+- Do not directly manipulate DOM order or treat visible order as proof of Spark persistence. The synthetic mouse adapter remains experimental and must be validated on a live exercise.
+- Keep Solve, Done & next without confirmation, Copy full exercise, and Speaking/Writing exclusions.
+
 ## v0.7.5 — QTI sequence payload & compact actions
 
 - Fix: send QTI `orderedTokens` to the content-side order adapter (v0.7.4 silently omitted it and always skipped).

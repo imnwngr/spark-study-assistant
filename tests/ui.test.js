@@ -60,7 +60,7 @@ test('popup sizing does not depend on its initial viewport width',()=>{
 });
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.7.5');
+  assert.equal(manifest.version,'0.7.6');
   assert.match(options,/data-i18n="version"/);
 });
 
@@ -108,4 +108,13 @@ test('v0.7.5 passes trusted ordered QTI tokens to sequence adapter and submits d
  assert.doesNotMatch(p,/confirm\(t\('submitAsk'\)\)/);
  assert.match(read('popup.html'),/>Solve<\/span>/);
  assert.match(read('popup.html'),/>Done &amp; next<\/span>/);
+});
+
+test('v0.7.6 finishes long sequences in one Solve click with bounded settling and retry',()=>{
+ const script=read('content.js');
+ assert.match(script,/async function waitForSequenceStep\(/);
+ assert.match(script,/Date\.now\(\)\+1800/);
+ assert.match(script,/attempts\+\+>=2/);
+ assert.match(script,/while\(normalized\(tileText\(stable\(\)\[i\]\)\)\!==normalized\(desired\[i\]\)\)/);
+ assert.doesNotMatch(script,/list\.appendChild\(|list\.insertBefore\(/);
 });

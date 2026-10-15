@@ -325,8 +325,9 @@
     const verified=group.items.every(item=>isChecked(item.node)===desired.has(item.id));
     return {status:verified?'filled':'uncertain',detail:verified?'Choice state verified.':'Could not verify selection state.'};
   }
-  // Experimental Avallain sequence adapter: exercise the widget's mouse path,
-  // never reorder DOM nodes directly. A rendered order is NOT proof of persistence.
+  // Experimental Avallain sequence adapter. The widget can settle later than
+  // the mouseup event, especially in long horizontal word sequences. Never
+  // reorder DOM directly or assume a synthetic drag was persisted by Spark.
   const sequenceTiles = root => [...root.querySelectorAll('.os-sequence__list > li.os-sequence-element')]
     .filter(el => !el.classList.contains('ui-draggable-dragging'));
   const tileText = el => tidy(el.querySelector('.firstword')?.textContent || el.innerText || el.textContent);
@@ -352,7 +353,6 @@
       await wait(24);
     }
     send(source.ownerDocument.elementFromPoint(x1,y1)||target,'mouseup',x1,y1,0);
-    await wait(250);
     return true;
   }
   async function setSequence(root,response) {
@@ -367,17 +367,52 @@
     const fixed=stable().map((el,i)=>el.classList.contains('ui-draggable-disabled')?i:-1).filter(i=>i>=0);
     if(fixed.some(i=>normalized(tileText(stable()[i]))!==normalized(desired[i])))
       return {status:'skipped',detail:'Fixed punctuation does not match the QTI order.'};
-    // One move at a time; stop immediately if Spark does not accept a move.
+
+    // Wait for the widget's drag clone/placeholder and asynchronous reflow to
+    // settle. A fixed 250ms sleep could misread an in-flight reordering as a
+    // failure and force the user to press Solve again.
+    async function waitForSequenceStep(position,expected,beforeIds) {
+      const deadline=Date.now()+1800;
+      let unchangedAt=0,previous='';
+      while(Date.now()<deadline){
+        const tiles=stable();
+        const ids=tiles.map(el=>el.getAttribute('data-model-id')||el.id||tileText(el)).join('\u0001');
+        const dragging=Boolean(list.querySelector('.ui-draggable-dragging,.drop-placeholder'));
+        if(tiles.length===desired.length && !dragging &&
+          normalized(tileText(tiles[position]))===normalized(expected) && ids!==beforeIds){
+          // Allow Spark a final animation/frame to update its model.
+          await wait(120);
+          const final=stable();
+          if(final.length===desired.length && normalized(tileText(final[position]))===normalized(expected))return true;
+        }
+        if(ids!==previous){previous=ids;unchangedAt=Date.now();}
+        if(unchangedAt && Date.now()-unchangedAt>=500 && !dragging && ids===beforeIds)break;
+        await wait(80);
+      }
+      return false;
+    }
+
+    // Retry the *same* still-unsolved position within this click, instead of
+    // making the user press Solve twice. Bounded work prevents runaway drags.
     for(let i=0;i<desired.length;i++){
-      const current=stable();
-      if(normalized(tileText(current[i]))===normalized(desired[i]))continue;
-      if(current[i].classList.contains('ui-draggable-disabled'))return {status:'skipped',detail:'Cannot move a fixed tile.'};
-      const candidates=current.slice(i+1).filter(el=>normalized(tileText(el))===normalized(desired[i])&&!el.classList.contains('ui-draggable-disabled'));
-      if(candidates.length!==1)return {status:'skipped',detail:'Ambiguous repeated word; refusing to guess tile identity.'};
-      const moved=await dragSequenceTile(candidates[0],current[i],true);
-      const after=stable();
-      if(!moved || normalized(tileText(after[i]))!==normalized(desired[i]))
-        return {status:'uncertain',detail:'Spark did not confirm the synthetic drag. No DOM-only fallback was used.'};
+      let attempts=0;
+      while(normalized(tileText(stable()[i]))!==normalized(desired[i])){
+        const current=stable();
+        if(current.length!==desired.length)return {status:'uncertain',detail:'Sequence changed during dragging.'};
+        if(current[i].classList.contains('ui-draggable-disabled'))return {status:'skipped',detail:'Cannot move a fixed tile.'};
+        const candidates=current.slice(i+1).filter(el=>normalized(tileText(el))===normalized(desired[i])&&!el.classList.contains('ui-draggable-disabled'));
+        if(candidates.length!==1)return {status:'skipped',detail:'Ambiguous repeated word; refusing to guess tile identity.'};
+        if(attempts++>=2)return {status:'uncertain',detail:'Spark did not accept the drag after two attempts; stopping safely.'};
+        const beforeIds=current.map(el=>el.getAttribute('data-model-id')||el.id||tileText(el)).join('\u0001');
+        const moved=await dragSequenceTile(candidates[0],current[i],true);
+        if(!moved || !(await waitForSequenceStep(i,desired[i],beforeIds))){
+          // The tile may have moved while the widget was settling; re-read
+          // state rather than applying a second drag against stale elements.
+          if(normalized(tileText(stable()[i]))===normalized(desired[i]))continue;
+          if(attempts>=2)return {status:'uncertain',detail:'Spark did not confirm the synthetic drag. No DOM-only fallback was used.'};
+          await wait(180);
+        }
+      }
     }
     const correct=sequenceWords(root).every((t,i)=>normalized(t)===normalized(desired[i]));
     return {status:correct?'filled':'uncertain',detail:correct?
