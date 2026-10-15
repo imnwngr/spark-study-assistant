@@ -1,3 +1,7 @@
+## v0.7.4 — Thử nghiệm điền bài sắp xếp từ
+
+**Solve & fill** thử kéo thả các thẻ từ theo đáp án QTI và xác minh thứ tự hiển thị. Spark có thể từ chối sự kiện chuột mô phỏng; không tự ý đảo thứ tự DOM. **Submit & next** bị khóa đối với dạng này vì chưa xác minh được việc Spark lưu đáp án. Speaking/Writing không thay đổi.
+
 <div align="center">
   <img src="icons/icon128.png" alt="Biểu tượng Spark Study Assistant" width="90" height="90" />
 

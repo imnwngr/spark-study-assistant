@@ -8,7 +8,7 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.3-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.4-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
   [![Tests](https://img.shields.io/badge/tests-123_passing-2A946A?style=flat-square)](#testing)
 
@@ -29,6 +29,10 @@
 
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
+
+## v0.7.4 — Experimental sequence fill
+
+For Avallain word-order sequences, **Solve & fill** attempts synthetic mouse dragging and checks visible word order. This is experimental and may be blocked by Spark; no direct DOM reordering is used. **Submit & next** is disabled for these sequences pending verification of answer persistence.
 
 ## v0.7.3 — Review sequences and safer multi-screen QTI
 

@@ -117,7 +117,7 @@
         // Published Spark order sequences have explicit correctResponse identifier
         // order, but their Avallain drag/drop widget has no verified programmatic
         // adapter. Reveal the answer only; do not change DOM or submission state.
-        if(q.kind!=='order'||q.applyable!==false||!Array.isArray(q.orderTokens)||
+        if(q.kind!=='order'||!Array.isArray(q.orderTokens)||
            declaration.cardinality!=='ordered'||declaration.baseType!=='identifier'){
           fail('unsupportedOrderControl');continue;
         }
@@ -159,7 +159,7 @@
         ...(selectedIds.length?{selectedIds,selectedLabels,choiceOptions}:{}),
         ...(alternatives.length?{acceptedVariants:alternatives}:{}),
         ...(pairs.length?{pairs}:{}),
-        ...(type==='orderInteraction'?{manualOnly:true,orderedTokens:selectedLabels}:{}),
+        ...(type==='orderInteraction'?{manualOnly:false,orderedTokens:selectedLabels}:{}),
         explanation:'Declared correct response in the published exercise data.'});
     }
     return {answers,total:questions.length,interactions:interactions.length,

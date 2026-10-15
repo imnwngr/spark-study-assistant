@@ -1,3 +1,12 @@
+## v0.7.4 — Experimental sequence fill
+
+- Added an experimental mouse-event adapter for Avallain `os-sequence` word tiles in **Solve & fill**.
+- Uses ordered QTI response tokens and verifies visible tile order after each attempted move.
+- Refuses ambiguous repeated words, fixed punctuation moves, and unexpected widget structures.
+- Does not directly reorder DOM nodes. Synthetic mouse events may be ignored by Spark; reports `uncertain` rather than claiming success.
+- **Submit & next remains disabled for sequence exercises**, since visual order alone cannot prove Spark persisted the answer.
+- Speaking and Writing remain excluded. Other exercise types unchanged.
+
 ## v0.7.3 — Review multi-screen QTI, safe order preview
 
 - Analyze 8 additional inspector captures: Real life sequence screens, 10-screen Review radio sets, and Writing skill. As requested, **Speaking and Writing (including Writing skill) remain deferred**.

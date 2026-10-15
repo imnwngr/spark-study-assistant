@@ -170,7 +170,8 @@
         questions.push({id,kind:isMatch?'match':isOrder?'order':isCorrection?'correction':'manual',
           context,options:[],rubric,wordBank:bank.text,hint:'',before:'',after:'',
           ...(isOrder&&tiles.length?{orderTokens:tiles}:{}),
-          block:b+1,position:1,applyable:false});
+          block:b+1,position:1,applyable:Boolean(isOrder && sequence && sequence.querySelector('.os-sequence__list'))});
+        if(isOrder && sequence && sequence.querySelector('.os-sequence__list')) refs.set(id,{kind:'order',node:sequence});
       }
     }
     const screenMatch=(root.id||'').match(/content_wrap_(\d+)/);
@@ -324,6 +325,65 @@
     const verified=group.items.every(item=>isChecked(item.node)===desired.has(item.id));
     return {status:verified?'filled':'uncertain',detail:verified?'Choice state verified.':'Could not verify selection state.'};
   }
+  // Experimental Avallain sequence adapter: exercise the widget's mouse path,
+  // never reorder DOM nodes directly. A rendered order is NOT proof of persistence.
+  const sequenceTiles = root => [...root.querySelectorAll('.os-sequence__list > li.os-sequence-element')]
+    .filter(el => !el.classList.contains('ui-draggable-dragging'));
+  const tileText = el => tidy(el.querySelector('.firstword')?.textContent || el.innerText || el.textContent);
+  const sameWords = (a,b) => a.length===b.length &&
+    a.map(normalized).sort().join('\0')===b.map(normalized).sort().join('\0');
+  const sequenceWords = root => sequenceTiles(root).map(tileText);
+  async function dragSequenceTile(source,target,before) {
+    if(!source.isConnected || !target.isConnected || source===target)return false;
+    if(source.classList.contains('ui-draggable-disabled') || target.classList.contains('ui-draggable-disabled'))return false;
+    const a=source.getBoundingClientRect(),b=target.getBoundingClientRect();
+    if(!a.width||!a.height||!b.width||!b.height)return false;
+    const view=source.ownerDocument.defaultView;
+    const x0=a.left+a.width/2,y0=a.top+a.height/2;
+    const x1=before?b.left+b.width*.22:b.right-b.width*.22,y1=b.top+b.height/2;
+    const send=(el,type,x,y,buttons)=>el.dispatchEvent(new view.MouseEvent(type,{
+      bubbles:true,cancelable:true,view,button:0,buttons,clientX:x,clientY:y}));
+    send(source,'mouseover',x0,y0,0);
+    send(source,'mousedown',x0,y0,1);
+    for(let i=1;i<=18;i++){
+      const t=i/18,x=x0+(x1-x0)*t,y=y0+(y1-y0)*t;
+      const hit=source.ownerDocument.elementFromPoint(x,y)||target;
+      send(hit,'mousemove',x,y,1);
+      await wait(24);
+    }
+    send(source.ownerDocument.elementFromPoint(x1,y1)||target,'mouseup',x1,y1,0);
+    await wait(250);
+    return true;
+  }
+  async function setSequence(root,response) {
+    const desired=Array.isArray(response.orderedTokens)?response.orderedTokens.map(tidy):[];
+    const original=sequenceWords(root);
+    if(desired.length<2 || !sameWords(original,desired))return {status:'skipped',detail:'QTI order does not match the visible tiles.'};
+    const lists=[...root.querySelectorAll('.os-sequence__list')];
+    if(lists.length!==1)return {status:'skipped',detail:'Sequence list is ambiguous.'};
+    const list=lists[0];
+    const stable=()=>[...list.children].filter(el=>el.matches('li.os-sequence-element')&&!el.classList.contains('ui-draggable-dragging'));
+    if(stable().length!==desired.length)return {status:'skipped',detail:'Sequence contains unexpected tiles.'};
+    const fixed=stable().map((el,i)=>el.classList.contains('ui-draggable-disabled')?i:-1).filter(i=>i>=0);
+    if(fixed.some(i=>normalized(tileText(stable()[i]))!==normalized(desired[i])))
+      return {status:'skipped',detail:'Fixed punctuation does not match the QTI order.'};
+    // One move at a time; stop immediately if Spark does not accept a move.
+    for(let i=0;i<desired.length;i++){
+      const current=stable();
+      if(normalized(tileText(current[i]))===normalized(desired[i]))continue;
+      if(current[i].classList.contains('ui-draggable-disabled'))return {status:'skipped',detail:'Cannot move a fixed tile.'};
+      const candidates=current.slice(i+1).filter(el=>normalized(tileText(el))===normalized(desired[i])&&!el.classList.contains('ui-draggable-disabled'));
+      if(candidates.length!==1)return {status:'skipped',detail:'Ambiguous repeated word; refusing to guess tile identity.'};
+      const moved=await dragSequenceTile(candidates[0],current[i],true);
+      const after=stable();
+      if(!moved || normalized(tileText(after[i]))!==normalized(desired[i]))
+        return {status:'uncertain',detail:'Spark did not confirm the synthetic drag. No DOM-only fallback was used.'};
+    }
+    const correct=sequenceWords(root).every((t,i)=>normalized(t)===normalized(desired[i]));
+    return {status:correct?'filled':'uncertain',detail:correct?
+      'Visible sequence verified; Spark persistence is not independently confirmed.':
+      'Sequence order could not be verified.'};
+  }
   async function apply(answers) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){
       return (Array.isArray(answers)?answers:[]).map(a=>({id:a.id,status:'skipped',detail:'Screen changed; scan again.'}));
@@ -338,7 +398,8 @@
       if (!(found.items?found.items.every(item=>document.contains(item.node)):document.contains(found.node))) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
       try {
         let outcome;
-        if(found.kind==='dropdown')outcome=await setDropdown(found.node,value);
+        if(found.kind==='order')outcome=await setSequence(found.node,response);
+        else if(found.kind==='dropdown')outcome=await setDropdown(found.node,value);
         else if(found.kind==='choice'||found.kind==='multi')outcome=await setChoice(found,value,response.selectedIds);
         else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
         if(outcome.status==='filled'){
@@ -377,7 +438,7 @@
       return {submitted:false,reason:'submitChanged'};
     if(lastScan.submitted)return {submitted:false,reason:'submitAlready'};
     if(!Number.isInteger(expected)||expected!==lastScan.questions.length || !expected ||
-      lastScan.questions.some(q=>!q.applyable)||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
+      lastScan.questions.some(q=>!q.applyable||q.kind==='order')||lastScan.refs.size!==expected || lastScan.applied.size!==expected) {
       return {submitted:false,reason:'submitUnverified'};
     }
     // A manual change after filling invalidates the verification: re-read actual DOM values.

@@ -16,12 +16,12 @@ const order=(words,answerIndices=words.map((_,i)=>i))=>xml([response('RESPONSE0'
 const seq=(tokens)=>({id:'q1',kind:'order',applyable:false,orderTokens:tokens,context:'Sequence tiles',rubric:'Put the words in the correct order.'});
 const source=(files)=>'{'+files.map((_,i)=>JSON.stringify('sample'+i+'.xml')+':'+JSON.stringify('<assessmentItem/>')).join(',')+'}';
 function parserFor(files){let i=0;return{parseFromString(){const r=files[i++];return{documentElement:r,getElementsByTagName:t=>r.getElementsByTagName(t)};}};}
-test('review order: read QTI ordered identifiers, retaining punctuation, read-only',()=>{
+test('review order: read QTI ordered identifiers, retaining punctuation, experimental fill',()=>{
   const item=order(['i','feel','fine','.'],[0,1,2,3]);
   const mapped=Q.mapAssessment(item,[seq(['feel','i','fine','.'])]);
   assert.equal(mapped.reason,'complete');
   assert.equal(mapped.answers[0].answer,'i feel fine.');
-  assert.equal(mapped.answers[0].manualOnly,true);
+  assert.equal(mapped.answers[0].manualOnly,false);
   assert.deepEqual(mapped.answers[0].orderedTokens,['i','feel','fine','.']);
 });
 test('review order: select exactly one item XML from five with reused response identifier',()=>{
@@ -77,11 +77,11 @@ test('review title with Writing skill remains deferred in extension',()=>{
   const fs=require('node:fs'); const src=fs.readFileSync(require('node:path').join(__dirname,'../content.js'),'utf8');
   assert.match(src,/speaking\|writing\(\?: skill\)/);
 });
-test('order result remains manualOnly even when all QTI values are declared',()=>{
+test('order result exposes ordered tokens for experimental fill',()=>{
   const answer=Q.mapAssessment(order(['move','tiles','!']),[seq(['tiles','!','move'])]).answers[0];
   assert.equal(answer.confidence,'high');
   assert.equal(answer.source,'qti');
-  assert.equal(answer.manualOnly,true);
+  assert.equal(answer.manualOnly,false);
   assert.equal(answer.answer,'move tiles!');
 });
 test('order QTI refuses partial or extra identifiers',()=>{
