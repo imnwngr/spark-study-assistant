@@ -62,7 +62,8 @@
     if(items.some(x=>!x.id)||new Set(items.map(x=>x.id)).size!==items.length)return null;
     const groups=new Set(items.map(x=>x.id.split('_')[0]));
     if(groups.size!==1)return null;
-    return {kind,items,options:items.map(x=>x.label||x.id),choiceIds:items.map(x=>x.id)};
+    return {kind,items,options:items.map(x=>x.label||x.id),choiceIds:items.map(x=>x.id),
+      choiceLabelsVerified:items.every(x=>Boolean(x.label)&&normalized(x.label)!==normalized(x.id))};
   }
   // Bank words are per-screen. Do not accidentally take the hidden next page's pool.
   function findWordBank(root,blocks,rubric){
@@ -85,6 +86,12 @@
     return {text:'',block:null};
   }
   function formatBlock(block, controls) {
+    const sequence=block.closest('.interaction.os-sequence')||block.querySelector('.interaction.os-sequence');
+    if(sequence){
+      const tokens=[...sequence.querySelectorAll('li.os-sequence-element')].map(tile=>
+        tidy(tile.querySelector('.firstword')?.textContent||tile.innerText||tile.textContent)).filter(Boolean);
+      if(tokens.length)return `Sequence: ${tokens.join(' ').replace(/\s+([,.!?;:])/g,'$1')}`;
+    }
     const clone = block.cloneNode(true);
     clone.querySelectorAll('.enum,.sr-only,.srOnly,.sr_only,script,style').forEach(n => n.remove());
     const copiedControls = getControls(clone);
@@ -123,6 +130,7 @@
     const sourceBlocks=blocks.length?blocks.filter(b=>b!==bank.block):
       [...root.querySelectorAll('.layout__content .interaction')].slice(0,3);
     const hasEditable=sourceBlocks.some(b=>getControls(b).length||(!deferredCategory&&choiceGroup(b)));
+    const hasSequence=sourceBlocks.some(b=>b.closest('.os-sequence')||b.querySelector('.os-sequence__list'));
     for(let b=0;b<sourceBlocks.length;b++){
       const block=sourceBlocks[b];
       const group=deferredCategory?null:choiceGroup(block);
@@ -130,14 +138,14 @@
         const id=`q${questions.length+1}`;
         const question={id,kind:group.kind,context:tidy(block.innerText||block.textContent).slice(0,1200),
           localContext:tidy(block.innerText||block.textContent).slice(0,1200),options:group.options,
-          choiceIds:group.choiceIds,rubric,wordBank:bank.text,hint:'',before:'',after:'',
+          choiceIds:group.choiceIds,choiceLabelsVerified:group.choiceLabelsVerified,rubric,wordBank:bank.text,hint:'',before:'',after:'',
           block:b+1,position:1,applyable:true};
         questions.push(question);
         refs.set(id,{kind:group.kind,items:group.items});
         continue;
       }
       const controls=getControls(block);
-      if(hasEditable&&!controls.length)continue; // e.g. static vocabulary reference before text gaps
+      if((hasEditable||hasSequence)&&!controls.length && !block.closest('.os-sequence') && !block.querySelector('.os-sequence__list'))continue; // e.g. static vocabulary reference before text gaps
       const context=formatBlock(block,controls);
       if(!context)continue;
       if(controls.length){
@@ -154,10 +162,14 @@
       }else{
         const id=`q${questions.length+1}`;
         const isMatch=Boolean(block.matches('.gap_match_view,.om-text-gap,.ll_view')||block.closest('.gap_match_view,.om-text-gap,.ll_view')||block.querySelector('.gap_match_view,.om-text-gap,.ll_view'));
-        const isOrder=/sequence\s*\d/i.test(context)||/\b(order|unscramble|reorder)\b/i.test(rubric);
+        const sequence=block.closest('.interaction.os-sequence')||block.querySelector('.interaction.os-sequence');
+        const tiles=sequence?[...sequence.querySelectorAll('li.os-sequence-element')].map(tile=>
+          tidy(tile.querySelector('.firstword')?.textContent||tile.innerText||tile.textContent)).filter(Boolean):[];
+        const isOrder=Boolean(sequence && tiles.length>=2) || /sequence\s*\d/i.test(context)||/\b(order|unscramble|reorder)\b/i.test(rubric);
         const isCorrection=/\b(correction|correct|mistake|error)\b/i.test(rubric)||/grammar\s*1\s*\|\s*1/i.test(title);
         questions.push({id,kind:isMatch?'match':isOrder?'order':isCorrection?'correction':'manual',
           context,options:[],rubric,wordBank:bank.text,hint:'',before:'',after:'',
+          ...(isOrder&&tiles.length?{orderTokens:tiles}:{}),
           block:b+1,position:1,applyable:false});
       }
     }
@@ -191,6 +203,8 @@
       const printed=tidy(block.querySelector('.enum')?.textContent)||String(number);
       lines.push('',`${/^\d+\.?$/.test(printed)?printed.replace(/\.$/,''):number}. ${formatted}`);
       if(group?.options.length)lines.push(`Options: ${group.options.join(' | ')}`);
+      const orderTiles=block.closest('.os-sequence')?.querySelectorAll('li.os-sequence-element');
+      if(orderTiles?.length)lines.push(`Tiles: ${[...orderTiles].map(n=>tidy(n.querySelector('.firstword')?.textContent||n.innerText||n.textContent)).join(' | ')}`);
       else {
         for(const [index,node] of controls.entries()) {
           const options=getOptions(node);

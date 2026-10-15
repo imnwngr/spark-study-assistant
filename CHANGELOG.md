@@ -1,3 +1,12 @@
+## v0.7.3 — Review multi-screen QTI, safe order preview
+
+- Analyze 8 additional inspector captures: Real life sequence screens, 10-screen Review radio sets, and Writing skill. As requested, **Speaking and Writing (including Writing skill) remain deferred**.
+- Detect the `os-sequence` tiles of the active Spark screen; use the published `orderInteraction` declaration to reconstruct the exact sentence and punctuation only when every visible tile matches **one uniquely identifiable QTI XML assessment**. This is **read-only answer preview**, not automated dragging or submission.
+- Harden QTI assessment selection for Review radio groups where multiple screens reuse `C0_0` / `RESPONSE0`: cross-check option labels against the displayed text or against the per-ID DOM label mapping, and abstain on conflicts. Never infer by XML file order or shuffled visual position.
+- Improve exercise copy and scan for sequence tiles, active-screen isolation and manually handled tasks. Keep Solve & fill, Copy full exercise, and the v0.7.2 Submit & next safeguards unchanged.
+- Add 10 dedicated Node regression tests (123/123 total) and independent Chromium simulated integration checks for per-screen ordering plus shuffled 5-radio fill. The new inspector collection is not committed or sent to an API by the extension.
+- Authenticated live Spark validation still required, especially for any eventual drag-and-drop adapter. Gradebook status and Next are **not** inferred from QTI.
+
 ## v0.7.2 — Submit to Gradebook / Next control fix
 
 - Diagnose authenticated `1b | Grammar | 3` manual flow: `submit` changes from actionable to inactive after about 1.2 seconds; `forward_lo` navigates away, while `check` is hidden/disabled.

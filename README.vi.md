@@ -8,9 +8,9 @@
   Tiện ích Chrome giúp đọc, xem lại và điền đáp án cho những dạng bài được hỗ trợ trên National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#cài-đặt)
-  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.2-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.3-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-thuần-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#cấu-trúc-dự-án)
-  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-113_đạt-2A946A?style=flat-square)](#kiểm-thử)
+  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-123_đạt-2A946A?style=flat-square)](#kiểm-thử)
 
   [**Cài đặt**](#cài-đặt) · [**Cơ chế tìm đáp án**](#cơ-chế-tìm-đáp-án) · [**Cấu trúc**](#cấu-trúc-dự-án) · [**English**](README.md)
 </div>
@@ -26,6 +26,14 @@
 
 > [!NOTE]
 > Các ảnh giao diện sử dụng **dữ liệu mô phỏng**. Bộ đọc QTI đã được kiểm thử trong Chromium với dữ liệu XML mô phỏng năm câu lựa chọn và sáu ô nhập văn bản; chưa thể khẳng định mọi dạng bài hoặc mọi tài khoản Spark đều tương thích.
+
+## v0.7.3 — Review nhiều màn và xem đáp án sắp xếp từ
+
+Dựa trên **8 bản quét Spark thực tế bổ sung**, extension nhận diện dạng `orderInteraction` trong bài **Review Real life**. Khi các thẻ từ/dấu câu trên màn đang mở khớp chính xác với **một XML QTI duy nhất**, extension hiển thị câu theo thứ tự đúng. **Chưa tự kéo-thả**, vì chưa kiểm chứng được thao tác cập nhật trạng thái của Avallain. Solve & fill chỉ đưa ra đáp án để xem rồi bạn tự sắp xếp trên Spark; không tự nộp dạng này.
+
+Với bài **Review gồm 10 màn** có radio, bộ chọn XML giờ đối chiếu cả **chữ của phương án** và ID ổn định, tránh nhầm những màn đều dùng `C0_0`, `RESPONSE0`. Những câu khớp chắc chắn tiếp tục được tự chọn bằng adapter radio hiện có; trường hợp mơ hồ sẽ không đoán.
+
+**Speaking và toàn bộ Writing (kể cả Writing skill) vẫn được giữ nguyên.** Cơ chế nộp v0.7.2 không đổi. Đã kiểm thử **123/123 bài Node** và tương tác Chromium mô phỏng (5/5 radio, chọn đúng QTI theo màn sắp xếp); chưa xác nhận trên phiên Spark đăng nhập.
 
 ## v0.7.2 — Sửa Submit & next theo kết quả chẩn đoán thực
 

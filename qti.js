@@ -74,6 +74,24 @@
           // identifier is part of the DOM class; never trust the QTI position.
           if(options.length!==q.choiceIds?.length ||
              ids.slice().sort().join('\u0000')!==q.choiceIds.slice().sort().join('\u0000')){fail('choiceMismatch');continue;}
+          if(q.choiceLabelsVerified){
+            if(q.options?.length!==q.choiceIds?.length ||
+              q.choiceIds.some((id,index)=>norm(q.options[index])!==norm(options.find(c=>c.id===id)?.label))){
+              fail('choiceLabelMismatch');continue;
+            }
+          } else if(q.choiceLabelsVerified===false){
+            // For Review radio groups whose clickable node has no readable label,
+            // use the displayed sentence+options. Bare C0_n IDs are reusable
+            // across XML documents and are not proof of matching the screen.
+            const context=norm(q.context);
+            const hasLabel=label=>{
+              const text=norm(label);
+              if(text.length<2)return false;
+              const escaped=text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+              return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}(?=$|[^\\p{L}\\p{N}])`,'u').test(context);
+            };
+            if(options.some(option=>!hasLabel(option.label))){fail('unverifiedChoiceLabels');continue;}
+          }
           if(q.kind==='multi' && declaration.cardinality!=='multiple'){fail('cardinalityMismatch');continue;}
           if(q.kind==='choice' && declaration.values.length!==1){fail('cardinalityMismatch');continue;}
         }
@@ -95,6 +113,29 @@
           if(!alternatives.length){fail('incompleteCollocation');continue;}
         }
         answer=alternatives[0];
+      } else if(type==='orderInteraction'){
+        // Published Spark order sequences have explicit correctResponse identifier
+        // order, but their Avallain drag/drop widget has no verified programmatic
+        // adapter. Reveal the answer only; do not change DOM or submission state.
+        if(q.kind!=='order'||q.applyable!==false||!Array.isArray(q.orderTokens)||
+           declaration.cardinality!=='ordered'||declaration.baseType!=='identifier'){
+          fail('unsupportedOrderControl');continue;
+        }
+        const choices=children(el,'simpleChoice').map(n=>({id:attr(n,'identifier'),label:clean(n.textContent)}));
+        const ids=choices.map(c=>c.id),tokens=choices.map(c=>norm(c.label));
+        if(choices.length<2||ids.some(id=>!id)||tokens.some(t=>!t)||
+           new Set(ids).size!==ids.length||declaration.values.length!==choices.length||
+           declaration.values.some(id=>!ids.includes(id))||new Set(declaration.values).size!==ids.length){
+          fail('orderDeclarationMismatch');continue;
+        }
+        const seen=a=>a.map(norm).sort().join('\u0000');
+        if(seen(q.orderTokens)!==seen(choices.map(c=>c.label))){
+          fail('orderTilesMismatch');continue;
+        }
+        selectedIds=declaration.values.slice();
+        const ordered=selectedIds.map(id=>choices.find(c=>c.id===id).label);
+        selectedLabels=ordered;
+        answer=ordered.join(' ').replace(/\s+([,.!?;:])/g,'$1');
       } else if(type==='gapMatchInteraction'||type==='associateInteraction'){
         if(q.applyable||!['match','associate','manual'].includes(q.kind) ||
            !['directedPair','pair'].includes(declaration.baseType)||declaration.cardinality!=='multiple'){
@@ -118,6 +159,7 @@
         ...(selectedIds.length?{selectedIds,selectedLabels,choiceOptions}:{}),
         ...(alternatives.length?{acceptedVariants:alternatives}:{}),
         ...(pairs.length?{pairs}:{}),
+        ...(type==='orderInteraction'?{manualOnly:true,orderedTokens:selectedLabels}:{}),
         explanation:'Declared correct response in the published exercise data.'});
     }
     return {answers,total:questions.length,interactions:interactions.length,
@@ -131,6 +173,11 @@
   }
   function signatureScore(xml,questions){
     const its=interactionNodes(xml); if(its.length!==questions.length)return 0;
+    if(its.length===1 && name(its[0])==='orderInteraction' && questions[0]?.kind==='order'){
+      const tokens=children(its[0],'simpleChoice').map(c=>norm(c.textContent)).sort();
+      const visible=(questions[0].orderTokens||[]).map(norm).sort();
+      return tokens.length===visible.length && tokens.join('\u0000')===visible.join('\u0000')?1:0;
+    }
     let total=0,available=0;
     for(let i=0;i<its.length;i++){
       const a=finger(paragraph(its[i])),b=finger(questions[i]?.context||'');

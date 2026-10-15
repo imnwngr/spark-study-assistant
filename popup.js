@@ -152,7 +152,7 @@ async function solve() {
   progress('solve');status(t('solving'));
   try {
     const all=state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
-      localContext:q.localContext||'',options:q.options,choiceIds:q.choiceIds||[],rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
+      localContext:q.localContext||'',options:q.options,choiceIds:q.choiceIds||[],choiceLabelsVerified:q.choiceLabelsVerified===true,orderTokens:q.orderTokens||[],rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
     const payload={title:state.title,uiLanguage:I.language,questions:all};
     let qti=[];
     try {

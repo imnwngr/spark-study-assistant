@@ -8,9 +8,9 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.2-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.3-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
-  [![Tests](https://img.shields.io/badge/tests-109_passing-2A946A?style=flat-square)](#testing)
+  [![Tests](https://img.shields.io/badge/tests-123_passing-2A946A?style=flat-square)](#testing)
 
   [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
@@ -30,11 +30,19 @@
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
 
-## What's new in 0.7.2 — Simpler actions and complete exercise copy
+## v0.7.3 — Review sequences and safer multi-screen QTI
+
+Based on **8 additional real Spark Inspector captures**, the extension recognizes Review Real life **`orderInteraction`** sequences and displays their published, correctly ordered QTI sentence with punctuation **when the visible tiles match exactly one XML assessment**. **Ordering remains manual:** the current Avallain drag-and-drop UI has not been verified for programmatic manipulation, so Solve & fill will display the answer but will not drag tiles or silently submit it.
+
+For **10-screen Review** multiple-choice exercises, QTI candidates must now agree with the **actual choice text and stable IDs** in the active screen, not merely reusable identifiers such as `C0_0`. This reduces the risk of selecting another screen's XML. The existing fill adapter for radio choices remains available where DOM matching succeeds.
+
+**Speaking and Writing—including Writing skill—remain deferred** as requested. v0.7.2 Submit & next behavior is unchanged; server-side score persistence remains unverified without checking Spark. Validation: **123 Node tests and isolated Chromium integration runs** (5/5 shuffled radio fill and screen-specific sequence preview); no authenticated live test.
+
+## v0.7.2 — Compact actions and safe Submit & next
 
 The popup now offers **Solve & fill**, **Copy exercise** and the existing guarded **Submit & next** control. The duplicate **Solve** and **Fill selected answers** buttons were removed. Copy now reads the **current live Spark screen** with its instructions, full question text, word bank and choices—without exporting typed answers, QTI keys or hidden screens.
 
-**Submit & next remains experimental:** no additional Spark navigation selectors have been guessed. Use `tools/inspect-submit-next.js` for read-only before/after diagnostics of manual Check Answers, screen navigation and the next learning-object action. The extension does not automatically infer that a screen-forward arrow submits the assignment.
+**Submit & next:** v0.7.2 uses the observed `submit` (Submit to Gradebook) control, checks the UI change, then optionally uses `forward_lo` (Next) only when uniquely available and after explicit confirmation. A disabled Submit control does not by itself prove the grade was saved.
 
 ## What's new in 0.7.0 — QTI adapters
 
