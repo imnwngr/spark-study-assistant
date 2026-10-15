@@ -68,9 +68,22 @@
         if(correct.length!==1){diagnostics.push(`item${i+1}:correctOptionMissing`);continue;}
         answer=q.options.find(text=>norm(text)===norm(correct[0].text))||'';
       } else if(kind==='textEntryInteraction'||kind==='extendedTextInteraction'){
+        // A text gap must have an explicit *single string* declaration. QTI
+        // identifier responses belong to selection / matching interactions and
+        // must never be typed blindly into an exercise box.
         if(q.kind!=='text'||q.options?.length||declaration.values.length!==1||
+          (declaration.cardinality && declaration.cardinality!=='single')||
+          (declaration.baseType && declaration.baseType!=='string')||
           declaration.values[0].length>400){diagnostics.push(`item${i+1}:textMismatch`);continue;}
-        answer=declaration.values[0];
+        const textValue=declaration.values[0];
+        // Wordbuilding's "play / do / go + phrase from the box" blanks need
+        // a FULL collocation, not just the verb or the bank item alone.
+        if(/\bplay\s*,?\s*do\s*(?:or|\/)\s*go\b/i.test(q.rubric||'') &&
+            q.wordBank && !/^(?:play|do|go)\s+\S.+/i.test(textValue)){
+          diagnostics.push(`item${i+1}:incompleteCollocation`);
+          continue;
+        }
+        answer=textValue;
       } else {
         // Reordering / drag-drop requires its own DOM ↔ QTI mapping evidence.
         diagnostics.push(`item${i+1}:unsupportedInteraction:${kind}`);

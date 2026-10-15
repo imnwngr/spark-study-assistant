@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.1 — Wordbuilding shared banks & strict text QTI
+
+- Add conditional shared-word-bank recognition for exercises that explicitly ask for words or phrases from a box. Exclude the unnumbered vocabulary bank from question counts and preserve its terms in each editable blank.
+- Display the word bank in popup answer cards and copy reports; pass it to AI only for unresolved QTI questions.
+- Tighten typed QTI mapping to explicit single string declarations and reject incomplete *play/do/go + phrase* responses where the word bank is available. Unknown drag-and-drop/matching interactions remain unsupported rather than guessed.
+- Add a read-only Dashboard console inspector (`tools/inspect-wordbuilding.js`) and technical guide for collecting the real live DOM/QTI interaction shape without copying cookies, tokens or complete HTML.
+- Extend Node regression tests to 95 passing and run Chromium six-gap text-entry fixture: six scanned questions, six QTI mappings and six filled native inputs. This fixture is **synthetic**; compatibility with the actual Wordbuilding page is not verified.
+
+
 ## v0.6.0 — QTI-first answers & smoother glass
 
 - Introduce `qti.js`: a size-limited, non-executing parser for JSON-escaped `assessmentItem` XML embedded in published `data.js` files. Read declared `correctResponse` values and validate each mapping against visible choices and response IDs.

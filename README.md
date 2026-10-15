@@ -8,9 +8,9 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.6.0-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.6.1-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
-  [![Tests](https://img.shields.io/badge/tests-88_passing-2A946A?style=flat-square)](#testing)
+  [![Tests](https://img.shields.io/badge/tests-95_passing-2A946A?style=flat-square)](#testing)
 
   [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
@@ -28,9 +28,17 @@
 </div>
 
 > [!NOTE]
-> UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested against a browser fixture reproducing a five-question Spark exercise, but not every Spark interaction type or authenticated assignment has been verified.
+> UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
 
-## What's new in 0.6.0
+## What's new in 0.6.1 — Wordbuilding text gaps
+
+**Shared word banks are now handled as context.** For exercises such as *1b | Wordbuilding | 1*, the scanner recognizes an unnumbered static word bank, prevents it from being counted as an extra question and displays its vocabulary next to the text-entry gaps. The AI fallback also receives the bank; it is no longer asked to guess without the words shown on the page.
+
+**More conservative QTI text answers.** The parser only accepts single explicit `string` responses for typed blanks, and checks that *play/do/go + phrase* tasks receive a full collocation rather than an isolated verb. The extension does not guess mappings for drag/drop, `gapMatchInteraction` or unfamiliar custom controls.
+
+**Live-site compatibility still requires evidence.** The six-gap workflow passed a Chromium simulation using HTML and QTI text-entry markup, **not** a capture of this actual Spark exercise. To see what the live exercise really exposes, run the read-only [`Wordbuilding inspector`](tools/inspect-wordbuilding.js) in Dashboard DevTools Console, then review and share the JSON. [Wordbuilding guide](docs/WORD_BUILDING.md).
+
+## Previous release: 0.6.0
 
 **QTI-first solving.** Some published Spark exercises include explicit answer declarations inside an XML assessment packaged in `data.js`. This version reads those declarations locally and maps them to visible controls before considering an AI request.
 
@@ -124,7 +132,7 @@ spark-study-assistant/
 ├── i18n.js                       # UI copy for four languages
 │
 ├── content.js                    # Per-iframe DOM scan, fill and check/next
-├── qti.js                        # Safe data.js/XML parser & answer mapping  NEW
+├── qti.js                        # Safe data.js/XML parser & response mapping
 ├── background.js                 # Orchestrates fallback API requests
 ├── providers.js                  # Provider profiles, schemas and comparison
 ├── solver.js                     # Small legacy ruleset (not a local LLM)
@@ -136,10 +144,14 @@ spark-study-assistant/
 │   ├── screenshots/              # UI previews (illustrative)
 │   ├── AUTOMATION_DISCOVERY.md   # Privacy-safe DOM investigation
 │   ├── QTI_READER.md            # Reader design, validation and limits
+│   ├── WORD_BUILDING.md          # Shared bank + text-gap compatibility
 │   ├── GLASS_DESIGN.md           # Visual/material decisions
 │   └── ...                       # Historical design/research notes
+├── tools/
+│   └── inspect-wordbuilding.js  # Read-only DOM/QTI discovery console script
 └── tests/                        # Zero-dependency Node regression tests
     ├── qti.test.js               # XML answers, mismatches and fallback
+    ├── wordbuilding.test.js      # Collocation guards and bank handoff
     ├── providers.test.js
     ├── solver.test.js
     ├── background.test.js
@@ -159,7 +171,7 @@ Run the regression suite from PowerShell (single paste):
 }
 ```
 
-The tests cover mapping five sample answers to QTI choice identifiers, text responses, stale choice guards, provider behavior, UI structure and appearance. A separate Chromium integration check validated QTI XML parsing with the browser's native `DOMParser`. These tests do **not** guarantee that every live Spark assignment uses the same XML format.
+The 95 tests cover six text-entry collocations and mapping five sample answers to QTI choice identifiers, text responses, stale choice guards, provider behavior, UI structure and appearance. A separate Chromium integration check validated QTI XML parsing with the browser's native `DOMParser`. These tests do **not** guarantee that every live Spark assignment uses the same XML format.
 
 ## Permissions & safety
 

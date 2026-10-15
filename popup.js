@@ -90,6 +90,7 @@ function render() {
     body.append(el('span','question-kind',t({dropdown:'kindDropdown',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
     body.append(el('p','question-text',q.localContext||q.context));
     if(q.options?.length) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.options.join(' · ')}`));
+    else if(q.wordBank) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.wordBank}`));
     const line=el('div','answer-line');
     const lbl=el('label','',t('answer'));lbl.setAttribute('for','answer-'+q.id);
     let input;
@@ -153,7 +154,7 @@ async function solve() {
   $('solve').disabled=true;progress('solve');status(t('solving'));
   try {
     const all=state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
-      localContext:q.localContext||'',options:q.options,rubric:q.rubric,hint:q.hint,before:q.before,after:q.after}));
+      localContext:q.localContext||'',options:q.options,rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
     const payload={title:state.title,uiLanguage:I.language,questions:all};
     let qti=[];
     try {
@@ -207,6 +208,7 @@ function answerText() {
   for(const [i,q] of state.questions.entries()){
     lines.push(`${i+1}. ${q.context}`);
     if(q.options?.length)lines.push(`Options: ${q.options.join(' | ')}`);
+    else if(q.wordBank)lines.push(`Word bank: ${q.wordBank}`);
     const answer=state.answers.get(q.id)?.answer||'';
     lines.push(`Answer: ${answer||t('missing')}`);
     const alts=state.answers.get(q.id)?.alternatives||[];

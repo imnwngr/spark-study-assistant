@@ -38,6 +38,29 @@
       return true;
     });
   }
+  // Wordbuilding often puts a shared word bank in a static content block.
+  // It provides context, but is not itself an answerable question.
+  function findWordBank(blocks, rubric) {
+    if (!/\b(?:word|words|phrase|phrases)\b[^.?!]{0,130}\bbox\b/i.test(rubric) &&
+        !/\b(?:word|words)\s*bank\b/i.test(rubric)) return { text: '', block: null };
+    const explicit = document.querySelector(
+      '.layout__content .wordbank, .layout__content .word-bank, .layout__content .word-box, .layout__content .wordbox, .layout__content [data-zone-type="wordbank"]'
+    );
+    if (explicit && !getControls(explicit).length) {
+      const value = tidy(explicit.innerText || explicit.textContent).slice(0, 350);
+      if (value) return { text: value, block: blocks.find(b => b === explicit || b.contains(explicit)) || null };
+    }
+    // When there are editable blocks, an unnumbered short block preceding
+    // them is a plausible word bank; never suppress blocks in static-only tasks.
+    const firstEditable = blocks.findIndex(b => getControls(b).length > 0);
+    if (firstEditable < 1) return { text: '', block: null };
+    for (const block of blocks.slice(0, firstEditable)) {
+      if (getControls(block).length || block.querySelector('.enum,[data-continuous-enumeration-id]')) continue;
+      const text = tidy(block.innerText || block.textContent);
+      if (text.length >= 5 && text.length <= 220 && !/[?.!]/.test(text)) return { text, block };
+    }
+    return { text: '', block: null };
+  }
   function formatBlock(block, controls) {
     const clone = block.cloneNode(true);
     clone.querySelectorAll('.enum,.sr-only,.srOnly,.sr_only,script,style').forEach(n => n.remove());
@@ -71,7 +94,8 @@
       .filter((n,i,a) => a.indexOf(n) === i);
     const title = exerciseTitle();
     const rubric = tidy(document.querySelector('.layout__rubric')?.textContent).slice(0,500);
-    const sourceBlocks = blocks.length ? blocks :
+    const bank = findWordBank(blocks, rubric);
+    const sourceBlocks = blocks.length ? blocks.filter(b => b !== bank.block) :
       [...document.querySelectorAll('.layout__content .interaction')].slice(0,3);
     for (let b = 0; b < sourceBlocks.length; b++) {
       const block = sourceBlocks[b];
@@ -85,7 +109,8 @@
           const extra = around(context,index);
           const localContext = context.replace(/\[\[\d+\]\]/g, token => token === `[[${index + 1}]]` ? "[[1]]" : "[other gap]");
           const options = kind === 'dropdown' ? getOptions(node) : [];
-          const question = {id,kind,context,localContext,options,rubric,hint:extra.hint,before:extra.before,after:extra.after,
+          const question = {id,kind,context,localContext,options,rubric,wordBank:bank.text,
+            hint:extra.hint,before:extra.before,after:extra.after,
             block:b + 1,position:index + 1,applyable:true};
           questions.push(question);
           refs.set(id, {node,kind,options});
@@ -96,7 +121,7 @@
         const isOrder = /sequence\s*\d/i.test(context) || /\b(order|unscramble|reorder)\b/i.test(rubric);
         const isCorrection = /\b(correction|correct|mistake|error)\b/i.test(rubric) || /grammar\s*1\s*\|\s*1/i.test(title);
         questions.push({id, kind:isOrder?'order':isCorrection?'correction':'manual', context,
-          options:[], rubric, hint:'',before:'',after:'',block:b + 1,position:1, applyable:false});
+          options:[], rubric,wordBank:bank.text,hint:'',before:'',after:'',block:b + 1,position:1, applyable:false});
       }
     }
     lastScan = {title,questions,refs,applied:new Map(),submitted:false};

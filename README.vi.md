@@ -8,9 +8,9 @@
   Tiện ích Chrome giúp đọc, xem lại và điền đáp án cho những dạng bài được hỗ trợ trên National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#cài-đặt)
-  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.6.0-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.6.1-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-thuần-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#cấu-trúc-dự-án)
-  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-88_đạt-2A946A?style=flat-square)](#kiểm-thử)
+  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-95_đạt-2A946A?style=flat-square)](#kiểm-thử)
 
   [**Cài đặt**](#cài-đặt) · [**Cơ chế tìm đáp án**](#cơ-chế-tìm-đáp-án) · [**Cấu trúc**](#cấu-trúc-dự-án) · [**English**](README.md)
 </div>
@@ -25,9 +25,17 @@
 </div>
 
 > [!NOTE]
-> Các ảnh giao diện sử dụng **dữ liệu mô phỏng**. Bộ đọc QTI đã được kiểm thử trong Chromium với dữ liệu XML mô phỏng cấu trúc của bài Spark gồm năm câu; chưa thể khẳng định mọi dạng bài hoặc mọi tài khoản Spark đều tương thích.
+> Các ảnh giao diện sử dụng **dữ liệu mô phỏng**. Bộ đọc QTI đã được kiểm thử trong Chromium với dữ liệu XML mô phỏng năm câu lựa chọn và sáu ô nhập văn bản; chưa thể khẳng định mọi dạng bài hoặc mọi tài khoản Spark đều tương thích.
 
-## Có gì mới ở v0.6.0?
+## Có gì mới ở v0.6.1 — Wordbuilding
+
+**Nhận diện ngân hàng từ dùng chung:** Ở dạng *1b | Wordbuilding | 1*, extension tách khối từ vựng tĩnh khỏi sáu câu hỏi điền từ, giữ nguyên ngân hàng từ trong popup và chuyển nó vào ngữ cảnh của AI dự phòng. Điều này khắc phục tình trạng khối từ vựng bị đếm thành câu hỏi hoặc AI không nhận được danh sách cụm từ.
+
+**Ánh xạ QTI ô văn bản an toàn hơn:** Chỉ sử dụng `correctResponse` khi khai báo một giá trị `string` đơn, có tương tác text tương ứng. Với dạng *play/do/go + cụm từ*, đáp án một từ đơn lẻ sẽ không được coi là hoàn chỉnh. Dạng kéo thả hoặc `gapMatchInteraction` chưa được tự suy diễn.
+
+**Giới hạn:** Tôi đã thử thành công luồng sáu ô trong Chromium bằng **HTML và QTI mô phỏng**. Chưa có HTML/QTI thật của bài Wordbuilding này, nên chưa thể cam kết tự điền đúng trên Spark. Để kiểm tra, dán tệp [`tools/inspect-wordbuilding.js`](tools/inspect-wordbuilding.js) vào Console của Dashboard, xem lại JSON rồi gửi báo cáo. Xem [hướng dẫn Wordbuilding](docs/WORD_BUILDING.md).
+
+## Phiên bản trước: v0.6.0
 
 **Ưu tiên QTI:** Một số bài tập Spark công bố khai báo đáp án đúng trong XML nhúng vào tệp `data.js`. Extension tìm và đối chiếu các khai báo này với lựa chọn đang hiển thị trên trang **trước khi** gửi yêu cầu AI.
 
@@ -117,7 +125,7 @@ spark-study-assistant/
 ├── i18n.js                       # Nội dung giao diện 4 ngôn ngữ
 │
 ├── content.js                    # Quét DOM từng iframe, điền, chấm/chuyển
-├── qti.js                        # Phân tích data.js/XML và ánh xạ đáp án  MỚI
+├── qti.js                        # Phân tích data.js/XML và ánh xạ đáp án
 ├── background.js                 # Gọi API khi cần
 ├── providers.js                  # Cấu hình provider, so sánh model
 ├── solver.js                     # Bộ quy tắc cũ (không phải LLM offline)
@@ -129,10 +137,14 @@ spark-study-assistant/
 │   ├── screenshots/              # Ảnh giao diện minh họa
 │   ├── AUTOMATION_DISCOVERY.md   # Hướng dẫn thu thập DOM an toàn
 │   ├── QTI_READER.md            # Kiến trúc, kiểm tra và giới hạn QTI
+│   ├── WORD_BUILDING.md          # Ngân hàng từ và ô điền văn bản
 │   ├── GLASS_DESIGN.md           # Quyết định về chất liệu/giao diện
 │   └── ...                       # Tài liệu nghiên cứu trước đây
+├── tools/
+│   └── inspect-wordbuilding.js  # Lệnh Console chẩn đoán chỉ đọc
 └── tests/                        # Kiểm thử Node không cần thư viện ngoài
     ├── qti.test.js               # XML, đáp án, lỗi ánh xạ, API dự phòng
+    ├── wordbuilding.test.js      # Ngữ cảnh ngân hàng từ và ô điền
     ├── providers.test.js
     ├── solver.test.js
     ├── background.test.js
@@ -152,7 +164,7 @@ Trên PowerShell, chạy một lần:
 }
 ```
 
-Bộ kiểm thử xác nhận cách ghép đáp án QTI cho năm câu mẫu, xử lý đầu vào không khớp, câu văn bản, phương án dự phòng và giao diện. Ngoài Node, parser đã được thử với `DOMParser` thật trên Chromium. **Kết quả này chưa thay thế thử nghiệm thực tế với từng dạng bài Spark.**
+Bộ 95 bài kiểm thử xác nhận cách ghép đáp án QTI cho năm câu mẫu, xử lý đầu vào không khớp, câu văn bản, phương án dự phòng và giao diện. Ngoài Node, parser đã được thử với `DOMParser` thật trên Chromium. **Kết quả này chưa thay thế thử nghiệm thực tế với từng dạng bài Spark.**
 
 ## Quyền truy cập và giới hạn
 

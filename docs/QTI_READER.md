@@ -41,3 +41,13 @@ The XML `correctResponse` field represents the **published assessment declaratio
 ## Regression coverage
 
 Run `node --test`. `tests/qti.test.js` checks correct ID mapping, text entry, duplicate/missing values, stale options, source limits and fallback routing. Native Chromium `DOMParser` parsing was also checked against a synthetic namespace-aware five-item QTI assessment. This does **not** replace live-site integration testing.
+
+## Wordbuilding / shared word bank (v0.6.1)
+
+The **1b | Wordbuilding | 1** screenshot shows a *shared bank of words or phrases* and six free-text blanks. The previous scanner could mistakenly count an unnumbered static bank as an extra question, breaking the strict QTI interaction-count check, or omit the bank from the fallback AI prompt.
+
+The scanner now treats a static word-bank block as **context**, not a question, only when the rubric explicitly references words/phrases "from the box" and there are actual editable question blocks. It also recognizes common named word-bank containers. The bank is attached to each text question, shown in the popup, copied with the answer report, and included in the fallback AI prompt. It is never automatically treated as a list of multiple-choice answers.
+
+`qti.js` will accept a free-text Wordbuilding answer **only when** the published QTI has a corresponding `textEntryInteraction` or `extendedTextInteraction` with an explicit single string `correctResponse` and its interaction count matches the live questions. For the *play / do / go* rubric, incomplete one-word values are rejected when the word bank is present. A QTI `gapMatchInteraction`, another custom interaction, mismatched screen count, or unrecognized DOM editing control will **not** be guessed or silently filled.
+
+A synthetic six-question Chromium fixture passed scan → QTI decode → fill, but the real user's HTML / QTI for this Wordbuilding activity has **not been supplied**. To establish actual compatibility, paste [`tools/inspect-wordbuilding.js`](../tools/inspect-wordbuilding.js) into DevTools Console on the Spark Dashboard while this exercise is open. The resulting `SPARK_WORDBUILDING_DIAGNOSTIC` JSON reports input classes, interaction types, response IDs and declared answer strings without dumping HTML, cookies, URL queries or tokens. Review before sharing. It does not press Check Answers or submit.

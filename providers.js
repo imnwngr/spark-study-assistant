@@ -90,6 +90,7 @@
         'Exactly one answer per question ID. If uncertain, return an empty answer and low confidence.',
         'For dropdown/choice use one of the exact literal options.',
         'For text write ONLY the missing text. [[1]] identifies the target blank; [other gap] is not the target.',
+        'If a wordBank field is present, combine a suitable verb and bank phrase according to the instruction. Do not invent words absent from the exercise unless its directions explicitly require them.',
         'For order write the complete grammatical sentence without adding or omitting words.',
         'For correction give ONLY the replacement word or phrase.',
         'Never claim to listen to audio; infer phonetics only if a printed transcript is provided.',
