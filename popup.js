@@ -25,7 +25,7 @@ async function sendFrame(frameId,message) {
   catch (err) {
     // An extension added while the tab was already loaded has no content scripts there.
     try {
-      await chrome.scripting.executeScript({target:{tabId:state.tabId,frameIds:[frameId]},files:['content.js']});
+      await chrome.scripting.executeScript({target:{tabId:state.tabId,frameIds:[frameId]},files:['qti.js','content.js']});
       return await chrome.tabs.sendMessage(state.tabId,message,{frameId});
     } catch {return {ok:false,error:errString(err)};}
   }
@@ -69,6 +69,7 @@ async function scanPage() {
 }
 function render() {
   const root=$('questions');root.replaceChildren();
+  const fragment=document.createDocumentFragment();
   for(const [index,q] of state.questions.entries()) {
     const card=el('details','question-card');
     card.open=index===0;
@@ -110,8 +111,9 @@ function render() {
     const hint=el('p','explanation');hint.id='explain-'+q.id;
     if(!q.applyable) hint.textContent=t('manualOnly');
     const alternatives=el('div','alternatives');alternatives.id='alts-'+q.id;
-    body.append(hint,alternatives);card.append(body);root.append(card);
+    body.append(hint,alternatives);card.append(body);fragment.append(card);
   }
+  root.append(fragment);
 }
 function updateCardState(id,answer){
   const card=$('card-'+id),badge=$('badge-'+id);
@@ -127,8 +129,8 @@ function updateAnswers() {
     if (!input || !note || !alts) continue;
     input.value=ans?.answer||'';
     updateCardState(q.id,ans?.answer);
-    let label=ans?.source==='ai'?(ans.provider||'AI'):ans?.source==='compare'?t('compareAnswer'):ans?.source==='user'?t('yourChoice'):t('rules');
-    note.textContent=ans ? `${label} · ${ans.confidence||'low'} · ${ans.explanation||''}` : t('noAnswer');
+    let label=ans?.source==='qti'?t('qtiLabel'):ans?.source==='ai'?(ans.provider||'AI'):ans?.source==='compare'?t('compareAnswer'):ans?.source==='user'?t('yourChoice'):t('rules');
+    note.textContent=ans ? `${label} · ${ans.confidence||'low'} · ${ans.source==='qti'?t('qtiExplanation'):(ans.explanation||'')}` : t('noAnswer');
     if(!q.applyable) note.textContent+=' '+t('notAutoFill');
     if(ans && (!ans.answer || (ans.alternatives?.length>1))) $('card-'+q.id).open=true;
     alts.replaceChildren();
@@ -150,19 +152,52 @@ async function solve() {
   state.lastApplyVerified=false;$('submitNext').disabled=true;
   $('solve').disabled=true;progress('solve');status(t('solving'));
   try {
-    const payload={title:state.title,uiLanguage:I.language,questions:state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
-      localContext:q.localContext||'',options:q.options,rubric:q.rubric,hint:q.hint,before:q.before,after:q.after}))};
-    const response=await chrome.runtime.sendMessage({type:'SPARK_SOLVE',payload});
-    if(!response?.ok) throw new Error(response?.error||t('solveFailed'));
-    for(const ans of response.result.answers||[]) state.answers.set(ans.id,ans);
+    const all=state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
+      localContext:q.localContext||'',options:q.options,rubric:q.rubric,hint:q.hint,before:q.before,after:q.after}));
+    const payload={title:state.title,uiLanguage:I.language,questions:all};
+    let qti=[];
+    try {
+      const read=await sendFrame(state.frameId,{type:'SPARK_QTI',ids:all.map(q=>q.id)});
+      if(read?.ok && Array.isArray(read.result?.answers))qti=read.result.answers;
+    } catch { /* QTI is best effort; a missed key must not block AI fallback. */ }
+    const trusted=new Map();
+    for(const answer of qti){
+      const question=all.find(q=>q.id===answer.id);
+      if(!question || trusted.has(answer.id) || !answer.answer)continue;
+      if(question.options?.length && !question.options.some(opt=>normalized(opt)===normalized(answer.answer)))continue;
+      trusted.set(answer.id,answer);
+    }
+    const remaining=all.filter(q=>!trusted.has(q.id));
+    let fallback=null;
+    if(remaining.length){
+      try {
+        const response=await chrome.runtime.sendMessage({type:'SPARK_SOLVE',payload:{...payload,questions:remaining}});
+        if(!response?.ok)throw new Error(response?.error||t('solveFailed'));
+        fallback=response.result;
+      } catch(error) {
+        // Keep already validated local answers if the remote fallback is down.
+        fallback={answers:[],warning:errString(error)};
+      }
+    }
+    const fallbackMap=new Map((fallback?.answers||[]).map(a=>[a.id,a]));
+    state.answers=new Map();
+    for(const q of all){
+      const candidate=trusted.get(q.id)||fallbackMap.get(q.id);
+      if(candidate)state.answers.set(q.id,candidate);
+    }
     state.solved=true;
     updateAnswers();
-    const complete=(response.result.answers||[]).filter(a=>a.answer).length;
+    const complete=all.filter(q=>state.answers.get(q.id)?.answer).length;
     $('apply').disabled=complete===0;
     if(complete>0)progress('apply');
-    const label=response.result.mode==='compare'?t('compareMode'):response.result.mode==='ai'?`AI (${response.result.provider||'API'})`:t('rules');
-    status(t('readyCount',{mode:label,n:complete,total:state.questions.length})+(response.result.warning?' '+response.result.warning:''), complete?'success':'normal');
-    return complete > 0;
+    const label=trusted.size===all.length?t('qtiLabel'):
+      trusted.size?t('qtiMixed'):
+      fallback?.mode==='compare'?t('compareMode'):
+      fallback?.mode==='ai'?`AI (${fallback.provider||'API'})`:t('rules');
+    status(t('readyCount',{mode:label,n:complete,total:all.length})+
+      (trusted.size===all.length?' '+t('qtiNoApi'):'')+
+      (fallback?.warning?' '+fallback.warning:''),complete?'success':'normal');
+    return complete>0;
   }catch(error){status(errString(error),'error');return false;}
   finally{$('solve').disabled=false;}
 }
@@ -256,11 +291,11 @@ async function showMode(){
   try {
     const saved=await chrome.storage.local.get(['aiMode']);
     const mode=saved.aiMode;
-    $('modeLabel').textContent={single:t('singleMode'),compare:t('compareMode'),offline:t('offlineMode')}[mode]||t('ready');
+    $('modeLabel').textContent=t('qtiFirstShort');
   }catch{}
 }
 async function initialize(){
-  try {await I.load();await SparkAppearance.load();SparkAppearance.attachGlint();const stored=await chrome.storage.local.get(['autoNext']);state.autoNext=stored.autoNext!==false;}catch{}
+  try {await I.load();await SparkAppearance.load();const stored=await chrome.storage.local.get(['autoNext']);state.autoNext=stored.autoNext!==false;}catch{}
   await showMode();await scanPage();
 }
 chrome.storage.onChanged?.addListener((changes,area)=>{if(area==='local'&&(changes.uiLanguage||changes.uiTheme||changes.uiBackdropColor||changes.uiBackdropStrength)){

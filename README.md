@@ -1,152 +1,178 @@
 <div align="center">
+  <img src="icons/icon128.png" alt="Spark Study Assistant icon" width="90" height="90" />
 
-<img src="icons/icon128.png" alt="Spark Study Assistant icon" width="86" height="86" />
+  # Spark Study Assistant
 
-# Spark Study Assistant
+  **Answers from the exercise first. AI only when needed.**
 
-**A focused glass workspace for NGL Spark.**
+  A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
-Read the current exercise · Compare AI answers · Review · Fill · Check
+  [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
+  [![Release](https://img.shields.io/badge/version-0.6.0-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
+  [![Tests](https://img.shields.io/badge/tests-88_passing-2A946A?style=flat-square)](#testing)
 
-[**English**](README.md) · [**Tiếng Việt**](README.vi.md) · [**Design notes**](docs/GLASS_DESIGN.md) · [**Changelog**](CHANGELOG.md)
-
-<img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-2563EB?style=flat-square" />
-<img alt="Version 0.5.0" src="https://img.shields.io/badge/version-0.5.0-171717?style=flat-square" />
-<img alt="No build tooling" src="https://img.shields.io/badge/build-none-3A8B63?style=flat-square" />
-<img alt="4 interface languages" src="https://img.shields.io/badge/languages-4-8B5CF6?style=flat-square" />
-
+  [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
 
 ---
 
-## A small space for focused work
-
-Spark Study Assistant is a **locally installed Chrome extension** for selected exercise formats on [National Geographic Learning Spark](https://learn.eltngl.com/). It reads exercise elements inside supported frames, optionally asks an API-compatible AI model for answers, then lets you inspect and apply those answers.
-
-The interface takes **Liquid Glass** as its material language: translucent sheets, controlled blur, responsive highlights, a single command dock and a user-selected background. Its structure and interaction states follow [Hallmark](https://github.com/nutlope/hallmark) anti-slop principles. The product remains vanilla HTML/CSS/JavaScript without remote UI dependencies.
-
-<table align="center">
-<tr><td align="center"><img src="docs/screenshots/popup-glass-light.png" alt="Compact popup in light mode" width="300" /></td><td align="center"><img src="docs/screenshots/popup-glass-dark.png" alt="Compact popup in dark mode" width="300" /></td></tr>
-<tr><td align="center"><small>Light mode</small></td><td align="center"><small>Dark mode</small></td></tr>
+<div align="center">
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/popup-glass-light.png" alt="Spark Assistant popup — light" width="295" /></td>
+    <td align="center"><img src="docs/screenshots/popup-glass-dark.png" alt="Spark Assistant popup — dark" width="295" /></td>
+  </tr>
+  <tr><td align="center"><sub>Light · compact question review</sub></td><td align="center"><sub>Dark · Liquid Glass surfaces</sub></td></tr>
 </table>
+</div>
 
 > [!NOTE]
-> Screenshots use **mock exercise data**. They are not captured from a live student's account, and integration with every NGL Spark exercise format has not been verified.
+> UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested against a browser fixture reproducing a five-question Spark exercise, but not every Spark interaction type or authenticated assignment has been verified.
 
-## What it does
+## What's new in 0.6.0
 
-| Capability | Behavior |
+**QTI-first solving.** Some published Spark exercises include explicit answer declarations inside an XML assessment packaged in `data.js`. This version reads those declarations locally and maps them to visible controls before considering an AI request.
+
+**Less work for Chrome.** Nested answer cards no longer create individual blurred compositor layers. The shared glass material uses a lower blur radius; reflective pointer highlights are animation-frame limited, and the popup renders question cards in a single DOM batch.
+
+**Existing workflows stay intact.** Multiple AI profiles, model comparison, manual answer editing, guarded filling and the opt-in check-and-next action all remain available.
+
+## Answer pipeline
+
+```mermaid
+flowchart TD
+  A[Read current Spark exercise] --> B[Find published data.js in active frame]
+  B --> C{Valid QTI assessment?}
+  C -->|Yes| D[Read correctResponse declarations]
+  D --> E{Exact ID and option match?}
+  E -->|Yes| F[Verified local answer]
+  E -->|No| G[Unresolved question]
+  C -->|No| G
+  G --> H{Configured fallback?}
+  H -->|AI profile| I[Ask selected API for unresolved items only]
+  H -->|Legacy rules| J[Conservative rule suggestions]
+  F --> K[Review answers in popup]
+  I --> K
+  J --> K
+  K --> L[Fill supported controls]
+  L --> M[Optional confirmed Check & Next]
+```
+
+The QTI reader is **not** a general answer-key scraper. See [implementation notes](docs/QTI_READER.md). It accepts an answer only when the client-side assessment has an explicit `responseDeclaration / correctResponse` and the `responseIdentifier` plus **entire choice set** match the visible exercise. The initial release supports QTI inline/single-choice dropdowns and explicitly declared text-entry responses. Unknown formats (reordering, drag-and-drop, unusual scoring rules) remain unresolved and use the existing fallback.
+
+No downloaded script is evaluated by the QTI parser. The extension parses the JSON-escaped XML strings in `data.js`, with origin, size and structural checks. QTI content stays in the browser. **Only questions not matched locally are sent to your chosen AI provider.**
+
+| Case | What happens |
 |---|---|
-| **Exercise recognition** | Scans authorized Spark iframe documents; detects dropdowns, input fields and some static formats. |
-| **Multiple AI services** | Configurable OpenAI-compatible Chat Completions endpoints for OpenAI, OpenRouter, Groq, DeepSeek, Gemini, Ollama local API and custom services. |
-| **Model comparison** | Compare configured providers; disagreements remain choices for you to review. |
-| **Editable answer review** | Expand questions, choose dropdown answers and edit suggested responses. |
-| **Controlled filling** | Attempts to fill supported controls and reports confirmed, uncertain, skipped or manual items. |
-| **Check & next — experimental** | Explicit confirmation required. Only proceeds when all recognized items are verified and the page exposes suitable controls. |
-| **Interface languages** | English (default), Tiếng Việt, 简体中文, 繁體中文. |
-| **Appearance** | Light, Dark or Follow system; nine backdrop swatches; interactive hue wheel; arbitrary HEX/native color picker; intensity slider and instant preview. |
-| **Legacy offline rules** | Kept for compatibility; not being expanded in this release. API-backed solving is the recommended path. |
+| All visible choices map to QTI | **No AI call**; results marked `Verified QTI` |
+| Some choices map | QTI answers are retained; only unmatched items use the configured fallback |
+| Missing or malformed QTI | Existing single-AI, multi-AI comparison or legacy rules are used |
+| Controls cannot be verified on-page | The extension does not silently submit |
 
-### Install from source
+## Features
 
-1. Download or clone this repository.
-2. Open `chrome://extensions/` in Chromium/Chrome.
-3. Enable **Developer mode** and choose **Load unpacked**.
-4. Select the folder containing `manifest.json`.
-5. Open an exercise on `learn.eltngl.com`; refresh any Spark tab that was open before installation.
-6. Open the extension: **Scan page → Solve → Review → Fill**. Or use **Solve & fill** when you are confident the format is supported.
+| | Capability |
+|---|---|
+| ◈ | **QTI-first reader** for unambiguous, published answer declarations |
+| ↗ | **AI fallback** with independent OpenAI-compatible profiles and model comparison |
+| ✓ | **Review & edit** each response before filling |
+| ⌁ | **Guarded filling** for supported dropdown and text controls |
+| ⇥ | **Check & next (experimental)** only after a user confirmation and DOM validation |
+| ◐ | **Glass appearance**, Light / Dark / System and a nine-preset color studio with HEX & hue wheel |
+| 文 | **Four languages**: English (default), Tiếng Việt, 简体中文, 繁體中文 |
 
-No `npm install`, build step or backend service is required for the UI and rule engine. **AI requests require a provider key/endpoint and potentially incur charges.** A ChatGPT subscription does not provide OpenAI API credits.
+## Installation
 
-### Language and appearance
+1. Download this repository or use **Code → Download ZIP** on GitHub.
+2. Open **`chrome://extensions/`** in Chrome or Chromium.
+3. Enable **Developer mode**, select **Load unpacked**, and choose the directory containing `manifest.json`.
+4. Open an assignment on [NGL Spark](https://learn.eltngl.com/) and refresh the page once after installing/updating the extension.
+5. Open Spark Study Assistant and follow **Scan → Solve → Review → Fill**. Use **Solve & fill** to run the workflow in one action, then inspect your answers on Spark.
 
-Open **Settings → General**. Select a display language and a theme, then press **Save changes**. English is the default for new installations, regardless of your browser language. Your selection is saved in `chrome.storage.local` and applies to the popup and Settings.
+No `npm install`, bundler or API key is needed to inspect *compatible* published QTI answers. **An API key and endpoint are required for an AI fallback** if an exercise is not fully covered by QTI or the limited legacy rules.
 
-### Customize the Liquid Glass background
+### Configure AI fallback
 
-Open **Settings → Color studio** (or scroll to **Your own atmosphere** under General). The editor works like a compact desktop color studio:
+Go to **Settings → AI connections**, add profiles and choose the model(s) to use. Under **Answers**, select **Single AI**, **Compare AIs** or **Legacy rules**. The chosen mode applies **only after** QTI checking; a successful QTI answer never needs an API call.
 
-- Choose from **nine named wallpaper colors**, or pick any color on the **hue ring** (arrow keys also work; Shift+arrow adjusts faster).
-- Enter a six-digit **HEX color**, use Chrome's native color picker, and adjust **Background intensity** from 0–100%.
-- See the real theme tokens applied to the live interface preview. Click **Restore default** to return to Glacier.
-- Choose **System / Light / Dark** independently. **Save changes** writes only `uiBackdropColor` and `uiBackdropStrength` (plus your other preferences) to `chrome.storage.local`.
+OpenAI-compatible Chat Completions endpoints are supported (OpenAI, OpenRouter, Groq, DeepSeek, compatible Gemini endpoints, Ollama local server, custom endpoint). Native Anthropic Messages and the OpenAI Responses API are *not* directly implemented.
 
-<table align="center"><tr><td><img src="docs/screenshots/color-studio-light.png" alt="Color studio: hue ring, nine palettes and live preview in light mode" width="480" /></td><td><img src="docs/screenshots/color-studio-dark.png" alt="Color studio in dark mode" width="480" /></td></tr></table>
+### Personalize the interface
 
-Liquid Glass here is a **CSS material approximation** (`backdrop-filter`, translucent layers, refractive light, contrast fallbacks). A Chrome extension popup is its own surface: it **cannot blur or recolor the web page behind Chrome's toolbar**. Translucency is automatically simplified for reduced-transparency/high-contrast preferences. No color preference is sent to an AI endpoint.
+<div align="center">
+<table>
+<tr><td><img src="docs/screenshots/color-studio-light.png" width="410" alt="Color Studio light" /></td><td><img src="docs/screenshots/color-studio-dark.png" width="410" alt="Color Studio dark" /></td></tr>
+</table>
+</div>
 
-### Configure an AI provider
-
-Open **Settings → AI connections** to add a profile, edit its model ID, endpoint and key, and decide whether it participates in comparisons. In **Answers**, select **Single AI**, **Compare AIs**, or **Legacy rules**. Press **Save changes** and approve the host permission for the endpoint if Chrome asks.
-
-Only **OpenAI-compatible Chat Completions** is supported (`POST …/chat/completions`). Native Anthropic Messages / OpenAI Responses payloads are not implemented. Some models require **Prompt only** rather than a JSON response format. Ollama runs as a separate local service; it is not an embedded LLM.
-
-## Check answers and move forward — experimental
-
-The popup now includes **Submit & next**. This is an **explicit, confirmed** action; it does not run as part of **Solve & fill**.
-
-1. Review the proposed answers and choose **Fill selected answers**.
-2. The button is enabled **only if every recognized exercise item was filled and positively verified**. Unsupported, skipped or uncertain items block automation.
-3. Confirm the action. The extension attempts to click the known Spark **Check Answers** control (`[data-event="check"]`).
-4. It watches for a changed check state / answer status. Only if it can confirm this and **Move to next exercise** is enabled in Settings will it attempt the explicit next-learning-object control (`[data-event="forward_lo"]`).
-5. If the site does not confirm the step, or the next control is missing, the extension **stops** rather than clicking an unrelated element. Double submissions are also guarded within a scan session.
-
-> [!WARNING]
-> **`Check Answers` is not proven to be the final LMS score submission for all assignments.** The current HTML evidence shows separate `Check Answers`, `Results` and `Next` controls, but not every post-check state. This feature should be treated as an **opt-in beta**. It does **not** guarantee grading, score delivery or progression for every activity. See [DOM evidence needed](docs/AUTOMATION_DISCOVERY.md) for a privacy-safe way to help improve it.
-
-## Compatibility boundaries
-
-| Exercise type | Read / solve | Apply on-page |
-|---|---|---|
-| Dropdown (vocabulary, pronunciation with visible transcript) | Yes, when options are present | Attempt, then verify selected item |
-| Text input (verb forms, short answers) | Yes | Attempt, then verify value |
-| Static word ordering | Some detection / suggestions | **Manual**; no drag/drop automation |
-| Find-and-correct text | Some detection / suggestions | **Manual**; no click-to-edit support |
-| Audio without transcript | Not supported | Not supported |
-| Unrecognized cross-origin frame | Requires host permission / selector review | Not guaranteed |
-
-## Privacy, permissions and limitations
-
-- **API data:** only extracted question and option fields are intentionally sent to your selected provider. No Spark cookie, authentication token or assignment URL is intentionally included in AI payloads.
-- **Secrets:** API keys are stored in `chrome.storage.local`, restricted to trusted extension contexts on supporting Chrome versions. This is **not a cryptographic vault** against a compromised device; never commit personal keys to the repository.
-- **Endpoint access:** HTTPS endpoints and local loopback services are validated; optional host permissions are requested when you save active profiles. Only choose endpoints you trust.
-- **No auto-submit by default:** you must click **Submit & next** and confirm. The separate **Move to next exercise** preference controls automatic progression after a confirmed check.
-- **No unsupported promises:** JavaScript-triggered click events may not reproduce every interaction of the learning platform. A live account/browser test is needed before relying on the new workflow.
+Select Light, Dark or System, pick one of nine colors, enter a custom HEX value or use the hue ring and intensity slider. Preferences stay in `chrome.storage.local`. For smoother scrolling, glass blur is concentrated in larger surfaces rather than every nested row; reduced-motion and reduced-transparency preferences are respected.
 
 ## Project structure
 
 ```text
 spark-study-assistant/
-├── popup.html / popup.js        # Compact exercise workflow
-├── options.html / options.js    # AI profiles, language, theme, workflow
-├── i18n.js                      # English, Vietnamese, 简体中文, 繁體中文
-├── styles.css                   # Glass materials, tokens and responsive layout
-├── appearance.js                # Shared wallpaper persistence and CSS tokens
-├── color-studio.js              # Palette, hue ring, HEX and intensity controls
-├── content.js                   # Per-frame extraction, fill, check & next
-├── background.js                # AI requests, safe provider fallback
-├── providers.js / solver.js     # Profiles, model comparison, legacy rules
-├── _locales/                    # Chrome extension metadata localization
-├── docs/                        # Design and safe DOM evidence guides
-└── tests/                       # Node built-in test runner
+│
+├── manifest.json                 # Chrome MV3 permissions, scripts & version
+├── popup.html                    # Popup shell and actions
+├── popup.js                      # Scan → QTI → fallback → review → fill
+├── options.html                  # Settings layout
+├── options.js                    # AI profile, language and preference editing
+├── styles.css                    # Layout, glass tokens, responsive/accessibility
+├── appearance.js                 # Light/dark/wallpaper runtime
+├── color-studio.js               # Swatches, hue wheel and HEX validation
+├── i18n.js                       # UI copy for four languages
+│
+├── content.js                    # Per-iframe DOM scan, fill and check/next
+├── qti.js                        # Safe data.js/XML parser & answer mapping  NEW
+├── background.js                 # Orchestrates fallback API requests
+├── providers.js                  # Provider profiles, schemas and comparison
+├── solver.js                     # Small legacy ruleset (not a local LLM)
+│
+├── _locales/                     # Chrome manifest translations
+│   ├── en/  ├── vi/  ├── zh_CN/  └── zh_TW/
+├── icons/                        # Bundled extension icons
+├── docs/
+│   ├── screenshots/              # UI previews (illustrative)
+│   ├── AUTOMATION_DISCOVERY.md   # Privacy-safe DOM investigation
+│   ├── QTI_READER.md            # Reader design, validation and limits
+│   ├── GLASS_DESIGN.md           # Visual/material decisions
+│   └── ...                       # Historical design/research notes
+└── tests/                        # Zero-dependency Node regression tests
+    ├── qti.test.js               # XML answers, mismatches and fallback
+    ├── providers.test.js
+    ├── solver.test.js
+    ├── background.test.js
+    ├── appearance.test.js
+    ├── i18n.test.js
+    └── ui.test.js
 ```
 
-Run the tests:
+## Testing
 
-```bash
-node --test tests/*.test.js
+Run the regression suite from PowerShell (single paste):
+
+```powershell
+& {
+    Set-Location "$HOME\Downloads\spark-study-assistant"
+    node --test
+}
 ```
 
-There is no telemetry or additional remote UI runtime. The legacy offline research is archived in [`docs/OFFLINE_RESEARCH.md`](docs/OFFLINE_RESEARCH.md); no new offline packages or model weights were installed.
+The tests cover mapping five sample answers to QTI choice identifiers, text responses, stale choice guards, provider behavior, UI structure and appearance. A separate Chromium integration check validated QTI XML parsing with the browser's native `DOMParser`. These tests do **not** guarantee that every live Spark assignment uses the same XML format.
+
+## Permissions & safety
+
+- Reads exercise content in authorized Spark frames; cross-origin scripts are *not* fetched by the QTI reader.
+- API requests carry only unresolved extracted question/choice data to the selected provider — not LMS cookies, tokens or assignment URL.
+- API keys remain in Chrome local extension storage, which is **not a hardened secrets vault**; never add credentials to Git.
+- **Check & next** requires an explicit user click and confirmation. It may not be equivalent to the final LMS score submission. See [automation evidence](docs/AUTOMATION_DISCOVERY.md).
+- No background telemetry, remote UI framework, embedded LLM or large offline knowledge database.
 
 ---
 
 <div align="center">
-
-**Built for reviewable answers, not silent clicks.**
-
-[Tiếng Việt →](README.vi.md) · [UI design decisions](docs/GLASS_DESIGN.md) · [Automation limitations](docs/AUTOMATION_DISCOVERY.md)
-
-<sub>Independent open-source helper. Not affiliated with or endorsed by National Geographic Learning or Spark.</sub>
-
+  <strong>Less guessing. More verifiable answers.</strong><br />
+  <sub>Independent open-source companion; not affiliated with National Geographic Learning, Spark or Avallain.</sub><br /><br />
+  <a href="README.vi.md">Đọc bản tiếng Việt</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/AUTOMATION_DISCOVERY.md">Known limitations</a>
 </div>

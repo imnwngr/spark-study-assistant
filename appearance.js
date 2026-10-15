@@ -49,15 +49,34 @@
     return apply(saved.uiBackdropColor||DEFAULT_COLOR,saved.uiBackdropStrength??DEFAULT_STRENGTH);
   }
   function attachGlint(root=document){
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ||
+      window.matchMedia?.('(prefers-reduced-transparency: reduce)')?.matches ||
+      window.matchMedia?.('(pointer: coarse)')?.matches;
+    if(reduce)return;
+    // One compositor-friendly update per animation frame at most; no sync reads on
+    // every pointer event. Leave scroll and form controls free of decorative work.
     root.querySelectorAll('.preview-sheet,.welcome-panel').forEach(el=>{
       if(el.dataset.glintBound)return;
       el.dataset.glintBound='true';
+      let pending=0,rect=null,last=null;
+      const update=()=>{
+        pending=0;
+        if(!last||!el.isConnected)return;
+        rect ||= el.getBoundingClientRect();
+        if(!rect.width||!rect.height)return;
+        el.style.setProperty('--glare-x',`${((last.x-rect.left)/rect.width*100).toFixed(0)}%`);
+        el.style.setProperty('--glare-y',`${((last.y-rect.top)/rect.height*100).toFixed(0)}%`);
+      };
+      el.addEventListener('pointerenter',()=>{rect=null;},{passive:true});
       el.addEventListener('pointermove',event=>{
         if(event.pointerType==='touch')return;
-        const r=el.getBoundingClientRect();
-        el.style.setProperty('--glare-x',`${((event.clientX-r.left)/r.width*100).toFixed(1)}%`);
-        el.style.setProperty('--glare-y',`${((event.clientY-r.top)/r.height*100).toFixed(1)}%`);
-      });
+        last={x:event.clientX,y:event.clientY};
+        if(!pending)pending=requestAnimationFrame(update);
+      },{passive:true});
+      el.addEventListener('pointerleave',()=>{
+        last=null;rect=null;
+        if(pending){cancelAnimationFrame(pending);pending=0;}
+      },{passive:true});
     });
   }
   globalThis.SparkAppearance={attachGlint,DEFAULT_COLOR,DEFAULT_STRENGTH,PRESETS,normalizeColor,normalizeStrength,rgb,hslToHex,hueFromHex,apply,load};

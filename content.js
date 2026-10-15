@@ -3,6 +3,8 @@
   if (globalThis.__sparkStudyAssistantLoaded) return;
   globalThis.__sparkStudyAssistantLoaded = true;
   let lastScan = { title: '', questions: [], refs: new Map(), applied:new Map(), submitted:false };
+  let qtiCache = null;
+  let qtiPending = null;
   const tidy = (v) => String(v || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   const normalized = (v) => tidy(v).normalize('NFKC').toLowerCase().replace(/[’]/g, "'");
 
@@ -99,6 +101,42 @@
     }
     lastScan = {title,questions,refs,applied:new Map(),submitted:false};
     return {title,questions,frameUrl:location.origin + location.pathname, hasExercise:questions.length > 0};
+  }
+  async function readQTI(expectedIds) {
+    const questions = lastScan.questions;
+    if (!questions.length || !Array.isArray(expectedIds) ||
+      questions.length !== expectedIds.length ||
+      questions.some((q,i)=>q.id!==expectedIds[i])) {
+      return {answers:[],reason:'staleScan'};
+    }
+    const script = [...document.querySelectorAll('script[src]')].find(el=>{
+      try{return new URL(el.src).pathname.endsWith('/data.js');}catch{return false;}
+    });
+    if(!script || !globalThis.SparkQTI)return {answers:[],reason:'noDataScript'};
+    const url = new URL(script.src);
+    // Never load other origins or user-supplied endpoints.
+    if(url.origin!==location.origin || !/^\/cdn_proxy\//.test(url.pathname))return {answers:[],reason:'invalidDataOrigin'};
+    if(qtiCache?.url===url.href && qtiCache?.source){
+      return globalThis.SparkQTI.fromDataJs(qtiCache.source,questions,new DOMParser());
+    }
+    if(!qtiPending){
+      qtiPending=(async()=>{
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),4000);
+        try {
+          const response=await fetch(url.href,{credentials:'same-origin',cache:'force-cache',signal:controller.signal});
+          if(!response.ok)return null;
+          const declaredLength=Number(response.headers.get('content-length')||0);
+          if(declaredLength>globalThis.SparkQTI.MAX_SOURCE)return null;
+          const source=await response.text();
+          return source.length<=globalThis.SparkQTI.MAX_SOURCE?source:null;
+        } finally {clearTimeout(timer);}
+      })().finally(()=>{qtiPending=null;});
+    }
+    const source=await qtiPending;
+    if(!source)return {answers:[],reason:'dataUnavailable'};
+    qtiCache={url:url.href,source};
+    return globalThis.SparkQTI.fromDataJs(source,questions,new DOMParser());
   }
   function setText(el, value) {
     el.focus();
@@ -227,11 +265,15 @@
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,respond) => {
-    if (!message || !['SPARK_SCAN','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT'].includes(message.type)) return false;
+    if (!message || !['SPARK_SCAN','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT','SPARK_QTI'].includes(message.type)) return false;
     if (message.type === 'SPARK_PING') {respond({ok:true,ready:true});return false;}
     if (message.type === 'SPARK_SCAN') {
       try {respond({ok:true,result:scan()});} catch(e) {respond({ok:false,error:e.message});}
       return false;
+    }
+    if (message.type === 'SPARK_QTI') {
+      readQTI(message.ids).then(result=>respond({ok:true,result}),error=>respond({ok:false,error:String(error?.message||error)}));
+      return true;
     }
     if (message.type === 'SPARK_APPLY') {
       apply(Array.isArray(message.answers)?message.answers:[])

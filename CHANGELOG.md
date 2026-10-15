@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.0 — QTI-first answers & smoother glass
+
+- Introduce `qti.js`: a size-limited, non-executing parser for JSON-escaped `assessmentItem` XML embedded in published `data.js` files. Read declared `correctResponse` values and validate each mapping against visible choices and response IDs.
+- Use QTI as the **first answer source**. Send **only unmatched questions** to existing AI profiles or legacy-rule fallback. Preserve already verified QTI matches when the fallback service fails.
+- Check same-origin `/cdn_proxy/` script paths and scan revision identifiers; handle missing, unsupported or ambiguous interactions conservatively. Support single-choice and explicit text-entry QTI mappings; order/drag/drop remain unsupported.
+- Speed up the interface: remove blur on nested popup question cards, buttons and sticky dock; reduce remaining material blur, batch card DOM updates and throttle pointer highlights to animation frames. Keep Light / Dark / System, backdrop colors and accessibility modes.
+- Make QTI priority visible in the popup and Settings, with English / Vietnamese / Simplified Chinese / Traditional Chinese copy.
+- Rebuild the English and Vietnamese README with illustrated features, QTI/API fallback diagram, accurate project tree, installation and limitations. Add `docs/QTI_READER.md`.
+- Extend automated tests from 79 to 88 passing Node tests; run Chromium integration checks for browser XML parsing, full QTI with zero API calls, partial QTI calling API only for two remaining questions and popup/Settings layout with mock data.
+- Browser-based tests are synthetic. A full authenticated Spark regression remains required for each exercise format.
+
 ## 0.5.0 — Liquid Glass & chromatic studio
 
 - Rebuild the popup into a compact **glass command deck**: exercise first, stable 388px width, persistent consolidated action dock, independent re-scan shortcut, and distinct loading/error states.
