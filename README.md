@@ -8,9 +8,9 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.0-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.1-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
-  [![Tests](https://img.shields.io/badge/tests-106_passing-2A946A?style=flat-square)](#testing)
+  [![Tests](https://img.shields.io/badge/tests-109_passing-2A946A?style=flat-square)](#testing)
 
   [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
@@ -29,6 +29,12 @@
 
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
+
+## What's new in 0.7.1 — Simpler actions and complete exercise copy
+
+The popup now offers **Solve & fill**, **Copy exercise** and the existing guarded **Submit & next** control. The duplicate **Solve** and **Fill selected answers** buttons were removed. Copy now reads the **current live Spark screen** with its instructions, full question text, word bank and choices—without exporting typed answers, QTI keys or hidden screens.
+
+**Submit & next remains experimental:** no additional Spark navigation selectors have been guessed. Use `tools/inspect-submit-next.js` for read-only before/after diagnostics of manual Check Answers, screen navigation and the next learning-object action. The extension does not automatically infer that a screen-forward arrow submits the assignment.
 
 ## What's new in 0.7.0 — QTI adapters
 
@@ -98,7 +104,7 @@ No downloaded script is evaluated by the QTI parser. The extension parses the JS
 2. Open **`chrome://extensions/`** in Chrome or Chromium.
 3. Enable **Developer mode**, select **Load unpacked**, and choose the directory containing `manifest.json`.
 4. Open an assignment on [NGL Spark](https://learn.eltngl.com/) and refresh the page once after installing/updating the extension.
-5. Open Spark Study Assistant and follow **Scan → Solve → Review → Fill**. Use **Solve & fill** to run the workflow in one action, then inspect your answers on Spark.
+5. Open Spark Study Assistant and use **Solve & fill**. Review the result on Spark. Use **Copy exercise** to capture the complete current screen without answers.
 
 No `npm install`, bundler or API key is needed to inspect *compatible* published QTI answers. **An API key and endpoint are required for an AI fallback** if an exercise is not fully covered by QTI or the limited legacy rules.
 
@@ -176,7 +182,7 @@ Run the regression suite from PowerShell (single paste):
 }
 ```
 
-The **106 automated Node tests** cover existing functionality and new radio, checkbox, alternatives, suffix-only answers, ambiguous multi-screen XML selection and gap-pair previews. An isolated Chromium test also verified DOM scanning and clicking one radio plus two checkboxes. These are synthetic tests, **not** an authenticated Spark compatibility guarantee.
+The **109 automated Node tests** cover existing functionality and new radio, checkbox, alternatives, suffix-only answers, ambiguous multi-screen XML selection and gap-pair previews. An isolated Chromium test also verified DOM scanning and clicking one radio plus two checkboxes. These are synthetic tests, **not** an authenticated Spark compatibility guarantee.
 
 ## Permissions & safety
 

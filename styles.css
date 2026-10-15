@@ -319,3 +319,9 @@ body.popup{width:388px;min-width:388px;max-width:none;max-height:610px;min-heigh
 /* v0.6 · Quiet, visibly prioritized QTI source, without another glass layer. */
 .qti-first-note{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);margin:0 0 var(--space-4);border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--green-bg);color:var(--ink-soft);font-size:12px;line-height:1.5}
 .qti-first-symbol{display:grid;place-items:center;flex:none;width:23px;height:23px;border-radius:50%;background:var(--green);color:var(--page);font-size:12px;font-weight:800}
+
+/* v0.7.1: one primary action, two secondary actions. No redundant solve/fill controls. */
+.popup .action-extras{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--space-2)}
+.popup .action-extras>.button{min-width:0;min-height:42px;font-size:11px}
+.popup .action-extras .button-subtle{background:var(--surface-muted)}
+.popup .action-extras .button-submit{background:var(--surface-raised)}

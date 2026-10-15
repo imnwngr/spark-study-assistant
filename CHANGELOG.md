@@ -1,3 +1,10 @@
+## v0.7.1 — Compact popup controls & safe submission diagnostics
+
+- Remove redundant **Solve** and **Fill selected answers** popup buttons while preserving the combined **Solve & fill** action and its QTI/API/application logic.
+- Make **Copy exercise** retrieve the complete *active screen* prompt directly from Spark, including instructions, every question, word banks and answer choices. Do not copy input values, QTI answer keys or hidden screens.
+- Retain guarded **Submit & next** without assuming the screen-forward and learning-object-forward controls are equivalent. Add a read-only diagnostic recorder to collect user-triggered before/after button state transitions without authentication data.
+- Refresh multilingual copy labels and regression tests.
+
 # Changelog
 
 ## v0.7.0 — Verified QTI adapters and multi-screen safety

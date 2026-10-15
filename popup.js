@@ -60,7 +60,6 @@ async function scanPage() {
     document.body.classList.add('has-results');
     $('emptyState').hidden=true;
     progress('solve');
-    $('apply').disabled=true;
     render();
     status(t('readReady'),'success');
     return true;
@@ -106,8 +105,7 @@ function render() {
       const prev=state.answers.get(q.id)||{};
       state.answers.set(q.id,{id:q.id,answer:input.value,confidence:'high',source:'user',explanation:t('manuallyEdited')});
       updateCardState(q.id,input.value);state.lastApplyVerified=false;$('submitNext').disabled=true;
-      $('apply').disabled=!state.questions.some(item=>item.applyable && state.answers.get(item.id)?.answer);
-    });
+      });
     line.append(lbl,input);body.append(line);
     const hint=el('p','explanation');hint.id='explain-'+q.id;
     if(!q.applyable) hint.textContent=t('manualOnly');
@@ -142,7 +140,7 @@ function updateAnswers() {
       button.addEventListener('click',()=>{
         state.answers.set(q.id,{id:q.id,answer:alternative.answer,confidence:'high',source:'user',
           explanation:t('choiceSelected'),alternatives:ans.alternatives});
-        updateAnswers();$('apply').disabled=false;state.lastApplyVerified=false;$('submitNext').disabled=true;
+        updateAnswers();state.lastApplyVerified=false;$('submitNext').disabled=true;
       });
       alts.append(button);
     }
@@ -151,7 +149,7 @@ function updateAnswers() {
 async function solve() {
   if(!state.questions.length)return;
   state.lastApplyVerified=false;$('submitNext').disabled=true;
-  $('solve').disabled=true;progress('solve');status(t('solving'));
+  progress('solve');status(t('solving'));
   try {
     const all=state.questions.map(q=>({id:q.id,kind:q.kind,context:q.context,
       localContext:q.localContext||'',options:q.options,choiceIds:q.choiceIds||[],rubric:q.rubric,wordBank:q.wordBank||'',hint:q.hint,before:q.before,after:q.after}));
@@ -198,7 +196,6 @@ async function solve() {
     if(labelsUpdated)render();
     updateAnswers();
     const complete=all.filter(q=>state.answers.get(q.id)?.answer).length;
-    $('apply').disabled=!all.some(q=>q.applyable && state.answers.get(q.id)?.answer);
     if(complete>0)progress('apply');
     const label=trusted.size===all.length?t('qtiLabel'):
       trusted.size?t('qtiMixed'):
@@ -209,27 +206,20 @@ async function solve() {
       (fallback?.warning?' '+fallback.warning:''),complete?'success':'normal');
     return complete>0;
   }catch(error){status(errString(error),'error');return false;}
-  finally{$('solve').disabled=false;}
 }
-function answerText() {
-  if (!state.questions.length) return '';
-  const lines=[state.title,''];
-  for(const [i,q] of state.questions.entries()){
-    lines.push(`${i+1}. ${q.context}`);
-    if(q.options?.length)lines.push(`Options: ${q.options.join(' | ')}`);
-    else if(q.wordBank)lines.push(`Word bank: ${q.wordBank}`);
-    const answer=state.answers.get(q.id)?.answer||'';
-    lines.push(`Answer: ${answer||t('missing')}`);
-    const alts=state.answers.get(q.id)?.alternatives||[];
-    if(alts.length) lines.push(t('alternatives')+': '+alts.map(x=>`${x.answer} (${x.providers.join(', ')})`).join(' | '));
-    lines.push('');
+// Copy the complete current exercise from Spark itself (not the truncated card preview).
+// The content script intentionally omits entered answers, session details and QTI keys.
+async function copyExercise() {
+  if (!state.tabId || state.frameId===null || !state.questions.length) {
+    status(t('noExercise'),'error');
+    return;
   }
-  return lines.join('\n');
-}
-async function copyAnswers() {
-  const output=answerText();
-  try{await navigator.clipboard.writeText(output);status(t('copied'),'success');}
-  catch(error){status(t('copyFailed',{error:errString(error)}),'error');}
+  try {
+    const response=await sendFrame(state.frameId,{type:'SPARK_COPY_PROMPT'});
+    if(!response?.ok || !response.result?.text)throw new Error(response?.error||t('noExercise'));
+    await navigator.clipboard.writeText(response.result.text);
+    status(t('copiedPrompt'),'success');
+  } catch(error){status(t('copyFailed',{error:errString(error)}),'error');}
 }
 async function applyAnswers() {
   if(!state.questions.length)return;
@@ -247,7 +237,7 @@ async function applyAnswers() {
     answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{})});
   }
   if(!answers.length){status(t('notReady'),'error');return;}
-  $('apply').disabled=true;progress('apply');status(t('filling'));
+  progress('apply');status(t('filling'));
   try{
     const response=await sendFrame(state.frameId,{type:'SPARK_APPLY',answers});
     if(!response?.ok) throw new Error(response?.error||t('fillFailed'));
@@ -262,7 +252,6 @@ async function applyAnswers() {
     $('submitNext').disabled=!state.lastApplyVerified;
     if(filled) { document.querySelector('[data-phase="apply"]')?.classList.add('is-done'); document.querySelector('[data-phase="apply"]')?.classList.remove('is-current'); }
   }catch(error){status(errString(error),'error');}
-  finally{$('apply').disabled=false;}
 }
 async function autoSolveAndFill() {
   $('auto').disabled=true;
@@ -297,9 +286,7 @@ $('submitNext').addEventListener('click',submitAndNext);
 $('auto').addEventListener('click',autoSolveAndFill);
 $('settings').addEventListener('click',()=>chrome.runtime.openOptionsPage());
 $('scan').addEventListener('click',scanPage);
-$('solve').addEventListener('click',solve);
-$('copy').addEventListener('click',copyAnswers);
-$('apply').addEventListener('click',applyAnswers);
+$('copy').addEventListener('click',copyExercise);
 async function showMode(){
   try {
     const saved=await chrome.storage.local.get(['aiMode']);

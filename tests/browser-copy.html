@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Browser prompt copy integration</title></head><body>
+<h1 class="learningObject__title">1b | Wordbuilding | 1</h1>
+<div id="content_wrap_0" class="content-wrap">
+  <div class="layout__rubric">Complete the sentences with play, do or go and a word from the box.</div>
+  <div class="layout__content"><div class="interaction"><ul class="pool"><li class="static_word">football</li><li class="static_word">the piano</li></ul>
+    <div class="contentblock"><span class="enum">1.</span><p>I <input type="text" value="secret-student-answer"/> when I have time. I love making music.</p></div>
+    <div class="contentblock"><span class="enum">2.</span><p>I often <input type="text"/> with friends.</p></div>
+  </div></div>
+</div>
+<div id="content_wrap_1" class="content-wrap activity--hidden" style="display:none">
+  <div class="layout__rubric">Do not copy this hidden screen</div>
+  <div class="layout__content"><div class="contentblock"><p>HIDDEN <input type="text" value="hidden-student-input"></p></div></div>
+</div>
+<script>window.chrome={runtime:{onMessage:{addListener(fn){window.__messageHandler=fn;}}}};</script>
+<script src="../qti.js"></script><script src="../content.js"></script>
+<script>
+(async()=>{
+  const run=msg=>new Promise(resolve=>window.__messageHandler(msg,null,resolve));
+  const result=await run({type:'SPARK_COPY_PROMPT'});
+  document.body.append(Object.assign(document.createElement('pre'),{id:'result',textContent:JSON.stringify(result)}));
+})().catch(e=>document.body.append(Object.assign(document.createElement('pre'),{id:'error',textContent:String(e)})));
+</script></body></html>

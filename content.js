@@ -166,6 +166,42 @@
     lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),submitted:false,screenIndex,activeRoot:root};
     return {title,questions,screenIndex,frameUrl:location.origin+location.pathname,hasExercise:questions.length>0};
   }
+  // Read the complete, *currently visible* exercise as a learner sees it.
+  // Never copy typed answers, XML correctResponse data, tokens, or hidden screens.
+  function copyPrompt() {
+    const root=activeContentRoot();
+    const title=exerciseTitle();
+    const rubric=tidy(root.querySelector('.layout__rubric')?.textContent ||
+      document.querySelector('.layout__rubric')?.textContent);
+    const blocks=[...root.querySelectorAll('.layout__content .contentblock,.interaction .contentblock')]
+      .filter((block,index,array)=>array.indexOf(block)===index);
+    const bank=findWordBank(root,blocks,rubric);
+    const relevant=blocks.filter(block=>block!==bank.block);
+    const lines=[title];
+    if(rubric)lines.push('',`Instructions: ${rubric}`);
+    if(bank.text)lines.push('',`Word bank: ${bank.text}`);
+    let number=0;
+    for(const block of relevant) {
+      const controls=getControls(block);
+      const group=choiceGroup(block);
+      const formatted=formatBlock(block,controls)
+        .replace(/\[\[\d+\]\]/g,'[____]');
+      if(!formatted)continue;
+      number++;
+      const printed=tidy(block.querySelector('.enum')?.textContent)||String(number);
+      lines.push('',`${/^\d+\.?$/.test(printed)?printed.replace(/\.$/,''):number}. ${formatted}`);
+      if(group?.options.length)lines.push(`Options: ${group.options.join(' | ')}`);
+      else {
+        for(const [index,node] of controls.entries()) {
+          const options=getOptions(node);
+          if(options.length)lines.push(`Gap ${index+1} options: ${options.join(' | ')}`);
+        }
+      }
+    }
+    return {title,screenIndex:Number((root.id||'').match(/content_wrap_(\d+)/)?.[1]||0),
+      questionBlocks:number,text:lines.join('\n').trim()};
+  }
+
   async function readQTI(expectedIds) {
     const questions = lastScan.questions;
     if (!questions.length || !Array.isArray(expectedIds) ||
@@ -375,10 +411,14 @@
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,respond) => {
-    if (!message || !['SPARK_SCAN','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT','SPARK_QTI'].includes(message.type)) return false;
+    if (!message || !['SPARK_SCAN','SPARK_COPY_PROMPT','SPARK_APPLY','SPARK_PING','SPARK_SUBMIT_NEXT','SPARK_QTI'].includes(message.type)) return false;
     if (message.type === 'SPARK_PING') {respond({ok:true,ready:true});return false;}
     if (message.type === 'SPARK_SCAN') {
       try {respond({ok:true,result:scan()});} catch(e) {respond({ok:false,error:e.message});}
+      return false;
+    }
+    if (message.type === 'SPARK_COPY_PROMPT') {
+      try {respond({ok:true,result:copyPrompt()});} catch(e){respond({ok:false,error:e.message});}
       return false;
     }
     if (message.type === 'SPARK_QTI') {

@@ -11,7 +11,7 @@
 </svg>
 <main class="popup-shell"><header class="app-header"><span class="app-header-topline" aria-hidden="true"></span>
   <div class="app-identity"><img alt="" class="app-icon" src="icons/icon48.png" width="42" height="42"/><div class="app-name-group"><strong>Spark Assistant</strong><span data-i18n="appSubtitle">Your study companion</span></div></div>
-  <div class="header-side"><span class="header-version">0.7.0</span><button id="scan" class="icon-button" type="button" data-i18n-title="scan" aria-label="Scan page"><svg class="ui-icon"><use href="#icon-scan"></use></svg></button><button id="settings" class="icon-button" type="button" data-i18n-title="settings" aria-label="Settings"><svg class="ui-icon"><use href="#icon-settings"></use></svg></button></div>
+  <div class="header-side"><span class="header-version">0.7.1</span><button id="scan" class="icon-button" type="button" data-i18n-title="scan" aria-label="Scan page"><svg class="ui-icon"><use href="#icon-scan"></use></svg></button><button id="settings" class="icon-button" type="button" data-i18n-title="settings" aria-label="Settings"><svg class="ui-icon"><use href="#icon-settings"></use></svg></button></div>
 </header>
 <section aria-labelledby="welcomeTitle" class="welcome-panel"><span class="glass-flare" aria-hidden="true"></span>
   <div class="welcome-content"><span class="eyebrow"><span class="live-dot"></span><span id="modeLabel" data-i18n="ready">Ready to help</span></span><h1 id="welcomeTitle" data-i18n="heroTitle">One question at a time.</h1><p data-i18n="heroDetail">Read the open exercise, review answers, then fill them on Spark.</p></div>
@@ -29,8 +29,7 @@
 </section>
 <div class="action-dock" role="group" aria-label="Exercise actions">
  <button type="button" id="auto" class="button button-primary button-hero"><svg class="ui-icon"><use href="#icon-spark"></use></svg><span data-i18n="solveFill">Solve &amp; fill</span><svg class="ui-icon action-arrow"><use href="#icon-arrow"></use></svg></button>
- <div class="action-extras"><div class="result-actions"><button type="button" id="copy" class="button button-subtle"><svg class="ui-icon"><use href="#icon-copy"></use></svg><span data-i18n="copy">Copy</span></button><button type="button" id="solve" class="button button-subtle"><svg class="ui-icon"><use href="#icon-spark"></use></svg><span data-i18n="solve">Solve</span></button></div>
- <div class="submission-actions"><button type="button" id="apply" class="button button-apply" disabled><span data-i18n="apply">Fill selected answers</span></button><button type="button" id="submitNext" class="button button-submit" disabled><svg class="ui-icon"><use href="#icon-check"></use></svg><span data-i18n="submitNext">Submit &amp; next</span></button></div></div>
+ <div class="action-extras"><button type="button" id="copy" class="button button-subtle" data-i18n-title="copyPromptHint"><svg class="ui-icon"><use href="#icon-copy"></use></svg><span data-i18n="copyPrompt">Copy full exercise</span></button><button type="button" id="submitNext" class="button button-submit" disabled data-i18n-title="autoNotApplied"><svg class="ui-icon"><use href="#icon-check"></use></svg><span data-i18n="submitNext">Submit &amp; next</span></button></div>
 </div>
 <footer class="popup-footer" data-i18n="privacyFooter">Your configured provider handles API requests.</footer>
 </main><script src="i18n.js"></script><script src="appearance.js"></script><script src="popup.js"></script></body></html>

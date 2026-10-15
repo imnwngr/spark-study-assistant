@@ -10,11 +10,22 @@ const options=read('options.html');
 const css=read('styles.css');
 
 test('popup retains all functional controls and status regions',()=>{
-  for(const id of ['submitNext','scan','auto','settings','status','emptyState','results','questions','solve','copy','apply','fillReport','title','count']){
+  for(const id of ['submitNext','scan','auto','settings','status','emptyState','results','questions','copy','fillReport','title','count']){
     assert.match(popup,new RegExp(`id="${id}"`),`Missing popup node #${id}`);
   }
   assert.match(popup,/aria-live="polite"/);
   assert.match(popup,/<details|id="questions"/);
+});
+test('compact popup has one solve and fill action and a complete-exercise copy',()=>{
+  assert.match(popup,/id="auto"/);
+  assert.match(popup,/id="copy"/);
+  assert.match(popup,/id="submitNext"/);
+  assert.doesNotMatch(popup,/id="solve"|id="apply"/);
+  const script=read('popup.js');
+  assert.match(script,/SPARK_COPY_PROMPT/);
+  assert.doesNotMatch(script,/\$\('solve'\)|\$\('apply'\)/);
+  assert.match(read('content.js'),/function copyPrompt\(/);
+  assert.match(read('content.js'),/SPARK_COPY_PROMPT/);
 });
 test('options retains all provider settings fields used by JS',()=>{
   for(const id of ['uiLanguage','uiTheme','autoNext','activeProfile','profilesList','profileEditor','profileName','provider','endpoint','model','apiKey','responseFormat','enabled','toggleKey','removeProfile','newProvider','addProfile','save','message']){
@@ -49,7 +60,7 @@ test('popup sizing does not depend on its initial viewport width',()=>{
 });
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.7.0');
+  assert.equal(manifest.version,'0.7.1');
   assert.match(options,/data-i18n="version"/);
 });
 

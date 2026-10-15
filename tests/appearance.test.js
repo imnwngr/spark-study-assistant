@@ -70,9 +70,10 @@ test('theme layers retain readable text in both themes with reduced transparency
   assert.match(css,/prefers-contrast:more/);
   assert.match(css,/backdrop-filter:var\(--glass-blur\)/);
 });
-test('new product composition keeps every existing action',()=>{
+test('simplified product composition retains primary and safe actions',()=>{
   const html=read('popup.html');
-  for(const id of ['auto','scan','settings','results','questions','solve','apply','submitNext','copy'])assert.match(html,new RegExp(`id="${id}"`));
+  for(const id of ['auto','scan','settings','results','questions','submitNext','copy'])assert.match(html,new RegExp(`id="${id}"`));
+  assert.doesNotMatch(html,/id="solve"|id="apply"/);
   assert.match(html,/class="action-dock"/);
   assert.match(html,/class="welcome-panel"/);
   assert.match(read('popup.js'),/state\.lastApplyVerified/);
