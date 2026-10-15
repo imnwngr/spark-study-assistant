@@ -8,7 +8,7 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.1-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.2-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
   [![Tests](https://img.shields.io/badge/tests-109_passing-2A946A?style=flat-square)](#testing)
 
@@ -30,7 +30,7 @@
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
 
-## What's new in 0.7.1 — Simpler actions and complete exercise copy
+## What's new in 0.7.2 — Simpler actions and complete exercise copy
 
 The popup now offers **Solve & fill**, **Copy exercise** and the existing guarded **Submit & next** control. The duplicate **Solve** and **Fill selected answers** buttons were removed. Copy now reads the **current live Spark screen** with its instructions, full question text, word bank and choices—without exporting typed answers, QTI keys or hidden screens.
 
@@ -198,4 +198,10 @@ The **109 automated Node tests** cover existing functionality and new radio, che
   <strong>Less guessing. More verifiable answers.</strong><br />
   <sub>Independent open-source companion; not affiliated with National Geographic Learning, Spark or Avallain.</sub><br /><br />
   <a href="README.vi.md">Đọc bản tiếng Việt</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/AUTOMATION_DISCOVERY.md">Known limitations</a>
-</div>
+</div>## v0.7.2 — Verified Spark submission controls (UI-level)
+
+The authenticated **1b | Grammar | 3** submit/next diagnostic shows that **Submit to Gradebook** (`data-event="submit"`), not the hidden **Check Answers** control, is the relevant action. After manual submission the button became disabled in about 1.2 seconds; the visible **Next** (`forward_lo`) control then took the user away from the exercise.
+
+The extension now selects a unique actionable Spark **Submit to Gradebook** button first and uses **Check Answers** only when that is the actionable control. It requires an explicit confirmation and all recognized answers to be successfully filled and reverified. It waits for a verifiable in-page button transition before requesting Next; on ambiguity, timeout, manual edits or missing Next it stops without attempting another click. The user may disable automatic Next in Settings. **A disabled button is not proof of a successful server-side gradebook save.** Only one real activity was inspected; synthetic Chromium tests cover other branches.
+
+

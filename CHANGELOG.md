@@ -1,3 +1,11 @@
+## v0.7.2 — Submit to Gradebook / Next control fix
+
+- Diagnose authenticated `1b | Grammar | 3` manual flow: `submit` changes from actionable to inactive after about 1.2 seconds; `forward_lo` navigates away, while `check` is hidden/disabled.
+- Prefer a uniquely visible Spark `data-event="submit"` control; fallback to uniquely actionable `check` for other activity types. Never click a generic form submit or hidden duplicate toolbar controls.
+- After explicitly confirmed, fully verified filling, wait for the *same connected* submission button to become disabled/inactive before requesting an unambiguous Next; otherwise stop with no retry and no navigation.
+- Maintain optional Next preference and existing Speaking/Writing exclusions. Clarify in all UI languages that a disabled button is not proof of server-side gradebook persistence.
+- Add regression tests and isolated Chromium tests for success, missing UI acknowledgement, disabled Next, and Check Answers fallback. Authenticated validation is limited to the user-supplied diagnostic trace.
+
 ## v0.7.1 — Compact popup controls & safe submission diagnostics
 
 - Remove redundant **Solve** and **Fill selected answers** popup buttons while preserving the combined **Solve & fill** action and its QTI/API/application logic.

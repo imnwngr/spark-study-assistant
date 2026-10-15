@@ -60,7 +60,7 @@ test('popup sizing does not depend on its initial viewport width',()=>{
 });
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.7.1');
+  assert.equal(manifest.version,'0.7.2');
   assert.match(options,/data-i18n="version"/);
 });
 
@@ -84,8 +84,10 @@ test('submission is opt-in, guarded and uses only known Spark controls',()=>{
   const script=read('content.js');
   assert.match(script,/SPARK_SUBMIT_NEXT/);
   assert.match(script,/lastScan\.applied\.size!==expected/);
-  assert.match(script,/\[data-event="check"\]/);
-  assert.match(script,/\[data-event="forward_lo"\]/);
+  assert.match(script,/availableActionControls\('check'\)/);
+  assert.match(script,/availableActionControls\('submit'\)/);
+  assert.match(script,/availableActionControls\('forward_lo'\)/);
+  assert.match(script,/control\.isConnected/);
   assert.doesNotMatch(script,/querySelector\('button\[type=submit\]'/);
   const popupScript=read('popup.js');
   assert.match(popupScript,/confirm\(t\('submitAsk'\)\)/);

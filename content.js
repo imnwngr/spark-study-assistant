@@ -347,10 +347,16 @@
     const css=getComputedStyle(node);
     return css.display!=='none' && css.visibility!=='hidden' && node.getClientRects().length>0;
   }
+  function availableActionControls(event) {
+    // Spark creates hidden duplicates of each toolbar in some activities.
+    // Only the single rendered, enabled control inside the learning object is safe.
+    return [...document.querySelectorAll(`#activity_controls [data-event="${event}"]`)]
+      .filter(actionable);
+  }
   function checkSignal() {
-    const check=document.querySelector('[data-event="check"]');
+    const available=availableActionControls('check');
     const answerStates=document.querySelectorAll('.status-correct,.status-incorrect,.is-correct,.is-incorrect,.correct-answer,.incorrect-answer').length;
-    return {checkAvailable:actionable(check), answerStates};
+    return {checkAvailable:available.length===1, answerStates};
   }
   async function submitNext(expected,goNext) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot)
@@ -380,34 +386,73 @@
       return normalized(ref.node.value!==undefined?ref.node.value:ref.node.textContent)===wanted;
     });
     if(!consistent)return {submitted:false,reason:'submitChanged'};
-    const check=document.querySelector('[data-event="check"]');
-    if(!actionable(check))return {submitted:false,reason:'submitControlMissing'};
-    // Lock before the click to prevent double-scoring on repeated popup calls.
-    lastScan.submitted=true;
+
+    // Observed on the authenticated 1b | Grammar | 3 activity:
+    //   submit -> Submit to Gradebook, becomes inactive after ~1.2 s
+    //   forward_lo -> Next, remains actionable until clicked
+    //   check -> Check Answers, hidden/disabled here
+    // Use the Spark gradebook control when present, falling back to Check Answers
+    // for other activity types. Never click a generic form submit button.
+    const gradebook=availableActionControls('submit');
+    const checks=availableActionControls('check');
+    if(gradebook.length>1 || checks.length>1)return {submitted:false,reason:'submitControlMissing'};
+    const mode=gradebook.length===1?'gradebook':checks.length===1?'check':null;
+    if(!mode)return {submitted:false,reason:'submitControlMissing'};
+    const control=mode==='gradebook'?gradebook[0]:checks[0];
+    const originalRoot=lastScan.activeRoot;
     const before=checkSignal();
-    check.click();
-    for(let i=0;i<10;i++){
-      await wait(180);
-      const after=checkSignal();
-      if((before.checkAvailable && !after.checkAvailable) || after.answerStates>before.answerStates){
-        if(goNext){
-          // Scoring may update the toolbar asynchronously. Wait a bounded period
-          // for exactly one Next *learning-object* control, not a generic arrow.
-          for(let attempt=0;attempt<8;attempt++){
-            const candidates=[...document.querySelectorAll('[data-event="forward_lo"]')].filter(actionable);
-            if(candidates.length===1){
-              // Delay lets the success response reach the popup before Spark unloads this iframe.
-              setTimeout(()=>{if(actionable(candidates[0]))candidates[0].click();},250);
-              return {submitted:true,confirmed:true,nextClicked:true};
-            }
-            if(candidates.length>1)break; // ambiguity must never cause a click
-            await wait(150);
+
+    // Lock before clicking to avoid a second Gradebook submission on repeated calls.
+    lastScan.submitted=true;
+    control.click();
+    let transitioned=false;
+    for(let i=0;i<22;i++){
+      await wait(160);
+      if(activeContentRoot()!==originalRoot)break;
+      if(mode==='gradebook'){
+        // Disappearance alone is NOT proof: require the *same connected button*
+        // to enter the disabled/inactive state, as observed in the diagnostic.
+        if(control.isConnected && (control.disabled || control.classList.contains('inactive_button'))
+           && !actionable(control)){
+          // Avoid advancing while a transient save-request spinner merely disables Submit.
+          await wait(380);
+          if(control.isConnected && (control.disabled || control.classList.contains('inactive_button'))
+             && !actionable(control) && activeContentRoot()===originalRoot){
+            transitioned=true;
+            break;
           }
         }
-        return {submitted:true,confirmed:true,nextClicked:false,reason:'nextControlMissing'};
+      }else{
+        const after=checkSignal();
+        if((before.checkAvailable && !after.checkAvailable) || after.answerStates>before.answerStates){
+          transitioned=true;
+          break;
+        }
       }
     }
-    return {submitted:true,confirmed:false,nextClicked:false,reason:'submitClicked'};
+    if(!transitioned){
+      // The click may have reached Spark, but a server-side save is NOT established.
+      // Never retry automatically or click Next on an ambiguous outcome.
+      return {submitted:true,confirmed:false,nextClicked:false,mode,reason:'submitClicked'};
+    }
+
+    if(goNext){
+      const candidates=availableActionControls('forward_lo');
+      if(candidates.length!==1)
+        return {submitted:true,confirmed:true,nextClicked:false,mode,reason:'nextControlMissing'};
+      const next=candidates[0];
+      // Respond before navigating, since Spark may unload this iframe on Next.
+      // Recheck every guard immediately before the scheduled click.
+      setTimeout(()=>{
+        if(lastScan.submitted && activeContentRoot()===originalRoot &&
+           actionable(next) && availableActionControls('forward_lo').length===1 &&
+           (mode!=='gradebook'||(control.isConnected && !actionable(control)))){
+          next.click();
+        }
+      },300);
+      return {submitted:true,confirmed:true,nextClicked:true,mode};
+    }
+    return {submitted:true,confirmed:true,nextClicked:false,mode};
   }
 
   chrome.runtime.onMessage.addListener((message,_sender,respond) => {

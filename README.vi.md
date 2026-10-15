@@ -8,9 +8,9 @@
   Tiện ích Chrome giúp đọc, xem lại và điền đáp án cho những dạng bài được hỗ trợ trên National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#cài-đặt)
-  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.1-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.2-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-thuần-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#cấu-trúc-dự-án)
-  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-109_đạt-2A946A?style=flat-square)](#kiểm-thử)
+  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-113_đạt-2A946A?style=flat-square)](#kiểm-thử)
 
   [**Cài đặt**](#cài-đặt) · [**Cơ chế tìm đáp án**](#cơ-chế-tìm-đáp-án) · [**Cấu trúc**](#cấu-trúc-dự-án) · [**English**](README.md)
 </div>
@@ -27,11 +27,17 @@
 > [!NOTE]
 > Các ảnh giao diện sử dụng **dữ liệu mô phỏng**. Bộ đọc QTI đã được kiểm thử trong Chromium với dữ liệu XML mô phỏng năm câu lựa chọn và sáu ô nhập văn bản; chưa thể khẳng định mọi dạng bài hoặc mọi tài khoản Spark đều tương thích.
 
+## v0.7.2 — Sửa Submit & next theo kết quả chẩn đoán thực
+
+Báo cáo từ bài **1b | Grammar | 3** xác nhận Spark dùng nút **Submit to Gradebook** (`data-event="submit"`) để nộp bài, không phải nút **Check Answers** đang bị ẩn. Sau khi người dùng tự nhấn nộp, nút chuyển sang trạng thái không hoạt động sau khoảng 1,2 giây; nút **Next** (`forward_lo`) vẫn khả dụng.
+
+Extension hiện ưu tiên nút nộp của Spark, chỉ dự phòng Check Answers khi nút đó thực sự khả dụng. Trước khi nộp vẫn yêu cầu xác nhận, kiểm tra mọi câu đã điền và đối chiếu lại DOM. Chỉ yêu cầu chuyển bài khi thấy nút nộp đổi trạng thái và có **đúng một** nút Next đang hoạt động; tình huống mơ hồ thì dừng, không tự nộp lại. Có thể tắt tự chuyển bài trong Settings. **Nút bị vô hiệu hóa không chứng minh máy chủ đã lưu điểm.** Mới có một bài được chẩn đoán thực tế; các nhánh khác được kiểm thử bằng Chromium mô phỏng.
+
 ## Bản v0.7.1 — Tối giản thao tác và sao chép đầy đủ đề bài
 
 Popup chỉ còn **Solve & fill**, **Sao chép đề** và nút **Submit & next** có kiểm tra an toàn. Hai nút Solve và Fill selected answers riêng đã được bỏ. Sao chép đọc trực tiếp **màn hình đang mở** trên Spark: hướng dẫn, câu hỏi đầy đủ, ngân hàng từ và lựa chọn; không xuất câu trả lời đã nhập, khóa QTI hoặc màn hình ẩn.
 
-**Submit & next vẫn là tính năng thử nghiệm.** Chưa đoán nút chuyển màn thay cho nút gửi kết quả. Dùng `tools/inspect-submit-next.js` để ghi nhận trạng thái các nút trước/sau khi bạn thao tác thủ công, sau đó gửi báo cáo JSON để cập nhật đúng logic.
+**Submit & next vẫn cần kiểm tra với bài Spark thật.** Luồng nộp/Next hiện dựa trên bản ghi thực từ một bài Grammar, không dựa trên suy đoán về nút Check Answers. Nếu không thấy xác nhận thay đổi giao diện, extension sẽ dừng và không tự nhấn Next.
 
 ## Có gì mới ở v0.7.0 — Mở rộng QTI Adapter
 
@@ -69,7 +75,7 @@ flowchart TD
   I --> K
   J --> K
   K --> L[Điền những ô được hỗ trợ]
-  L --> M[Tùy chọn Check & Next có xác nhận]
+  L --> M[Tùy chọn Submit & Next có xác nhận]
 ```
 
 Bộ đọc QTI **không** lấy đáp án bằng cách đoán tên trường (xem [tài liệu kỹ thuật](docs/QTI_READER.md)). Chỉ chấp nhận kết quả nếu XML có `responseDeclaration / correctResponse`, `responseIdentifier` hợp lệ và **toàn bộ danh sách lựa chọn** trùng với bài đang hiển thị. Hỗ trợ dropdown, radio, checkbox và ô nhập văn bản khi QTI khớp chắc chắn. Kéo-thả chỉ hiện cặp đáp án để xem, chưa tự thao tác; Speaking/Writing chưa mở rộng.

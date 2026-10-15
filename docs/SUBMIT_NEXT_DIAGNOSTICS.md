@@ -1,21 +1,23 @@
-# Submit & next — finding the correct Spark flow
+# Submit & Next — diagnostic findings and v0.7.2 behavior
 
-**Purpose:** Find which Spark control checks answers, transitions between **screens of the same learning object**, reports results, and proceeds to **the next learning object**. These events are not interchangeable.
+## Observed on the real 1b | Grammar | 3 page
 
-The experimental extension submit button remains guarded in 0.7.1; no new target has been guessed.
+The supplied read-only diagnostic captured two manual clicks:
 
-## Run read-only diagnostics
+1. `Submit to Gradebook` (`data-event="submit"`) was visible, enabled and actionable. `Check Answers` (`data-event="check"`) was hidden and inactive. After around 1.2 seconds, Submit to Gradebook had an inactive class and `disabled=true`.
+2. `Next` (`data-event="forward_lo"`) was still visible and enabled. A manual click made the old exercise iframe disappear by the final snapshot.
 
-1. Open the Spark assignment **in its Dashboard tab** (not a standalone content URL).
-2. Chrome: **F12 → Sources → Snippets → New snippet**. Paste `tools/inspect-submit-next.js`; save and run (`Ctrl+Enter`). Or paste the file into the Dashboard Console.
-3. In the small panel, click **Capture now**. Then return to Spark and **manually** click the actual **Check Answers** control (only if you are ready to check your answers). If the exercise has multiple screens, try the ordinary **Next screen** control at the appropriate moment. The inspector will take before/after snapshots of those clicks.
-4. Click **Download JSON** or **Copy JSON**. Send that output to the developer.
-5. To compare pre/post scenarios, include a manual capture before and after opening Spark's **Results** view or proceeding to another learning object.
+This establishes the **UI state flow**, not server-side gradebook persistence. No network status, gradebook confirmation, or individual answer values were captured.
 
-The inspector **does not click any controls, submit answers, read entered answers, capture cookies or network requests**, or upload data. It only captures targeted button availability, active screen IDs, QTI feedback-state counts and click transitions. Close/Stop it when finished. Review the JSON before sharing: exercise titles are included.
+## v0.7.2 behavior
 
-## Why a button might stay disabled in v0.7.1
+- Requires a confirmed user click in the extension, verified filling for **all recognized items**, and an unchanged exercise/screen.
+- Uses exactly one actionable `submit` control, otherwise exactly one actionable `check` control. It never clicks a hidden duplicate or a generic form submit.
+- For `submit`, waits until the same connected button transitions into an inactive/disabled state. For `check`, waits for the historical check-state transition. A timeout or ambiguous transition stops automatic Next.
+- If enabled in Settings, requests `forward_lo` only after the UI-state transition and only if exactly one such button is actionable. If a stage is ambiguous, stop and ask the user to inspect Spark; do **not** silently retry.
+- `forward` is screen navigation *within* a learning object, not the same as `forward_lo`.
+- Submit & Next is not a guarantee that an assignment has been stored in the gradebook. Verify completion in Spark.
 
-The popup enables Submit & next only after **Solve & fill** verifies every recognized answer in the current visible screen. If even one answer requires manual interaction, the control remains disabled. The Spark `forward` control changes screens inside an exercise; `forward_lo` is a potential next-learning-object control. The `sendscores` control might present results instead of acting like Check Answers. Do not assume they have the same semantics without a before/after trace.
+## Collect additional evidence
 
-The final fix will be based on observed DOM state transitions, not a blind click selector.
+Run `tools/inspect-submit-next.js` as a Chrome DevTools Snippet on the Spark Dashboard. Use the recorder when manually submitting a *different exercise type*; never click Submit just to create a diagnostic if the work is not ready. Review JSON before sharing.
