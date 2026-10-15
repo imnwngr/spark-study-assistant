@@ -21,10 +21,10 @@ test('default language is English and invalid language returns English',()=>{
 test('all four requested languages translate primary workflow labels',()=>{
   const {engine,document}=languageEngine();
   for(const [locale,scan,submit] of [
-    ['en','Scan page','Submit & next'],
-    ['vi','Quét bài','Nộp & bài tiếp'],
-    ['zh-CN','扫描题目','提交并下一题'],
-    ['zh-TW','掃描題目','提交並下一題']]){
+    ['en','Scan page','Done & next'],
+    ['vi','Quét bài','Xong & tiếp'],
+    ['zh-CN','扫描题目','完成并继续'],
+    ['zh-TW','掃描題目','完成並繼續']]){
     engine.setLanguage(locale);
     assert.equal(engine.t('scan'),scan);
     assert.equal(engine.t('submitNext'),submit);

@@ -28,5 +28,5 @@ test('submitting remains opt-in, verified, and protected from duplicate calls',(
   assert.match(src,/lastScan\.applied\.size!==expected/);
   assert.match(src,/lastScan\.submitted=true;\s*control\.click\(\)/);
   const popup=fs.readFileSync(path.join(__dirname,'../popup.js'),'utf8');
-  assert.match(popup,/confirm\(t\('submitAsk'\)\)/);
+  assert.doesNotMatch(popup,/confirm\(t\('submitAsk'\)\)/); 
 });

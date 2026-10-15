@@ -60,7 +60,7 @@ test('popup sizing does not depend on its initial viewport width',()=>{
 });
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.7.4');
+  assert.equal(manifest.version,'0.7.5');
   assert.match(options,/data-i18n="version"/);
 });
 
@@ -90,7 +90,7 @@ test('submission is opt-in, guarded and uses only known Spark controls',()=>{
   assert.match(script,/control\.isConnected/);
   assert.doesNotMatch(script,/querySelector\('button\[type=submit\]'/);
   const popupScript=read('popup.js');
-  assert.match(popupScript,/confirm\(t\('submitAsk'\)\)/);
+  assert.doesNotMatch(popupScript,/confirm\(t\('submitAsk'\)\)/); 
   assert.match(popupScript,/state\.lastApplyVerified/);
   assert.match(popup,/<button[^>]*id="submitNext"[^>]*disabled/);
 });
@@ -100,4 +100,12 @@ test('both English and Vietnamese README files and DOM discovery guide exist',()
   }
   assert.match(read('README.md'),/README\.vi\.md/);
   assert.match(read('README.vi.md'),/README\.md/);
+});
+
+test('v0.7.5 passes trusted ordered QTI tokens to sequence adapter and submits directly',()=>{
+ const p=read('popup.js');
+ assert.match(p,/orderedTokens:a\.orderedTokens/);
+ assert.doesNotMatch(p,/confirm\(t\('submitAsk'\)\)/);
+ assert.match(read('popup.html'),/>Solve<\/span>/);
+ assert.match(read('popup.html'),/>Done &amp; next<\/span>/);
 });

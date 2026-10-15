@@ -1,3 +1,7 @@
+## v0.7.5 — Sửa truyền thứ tự từ và đổi tên nút
+
+Sửa lỗi v0.7.4 làm mất `orderedTokens` khi gọi adapter kéo-thả. Nút chính đổi thành **Solve**, nút nộp đổi thành **Done & next** và bỏ hộp thoại xác nhận bổ sung. Việc nộp vẫn chỉ diễn ra khi người dùng nhấn nút và toàn bộ đáp án được xác minh. Kéo thả chuột mô phỏng **chưa được kiểm chứng trên Spark thật**; Spark có thể từ chối sự kiện giả lập.
+
 ## v0.7.4 — Thử nghiệm điền bài sắp xếp từ
 
 **Solve & fill** thử kéo thả các thẻ từ theo đáp án QTI và xác minh thứ tự hiển thị. Spark có thể từ chối sự kiện chuột mô phỏng; không tự ý đảo thứ tự DOM. **Submit & next** bị khóa đối với dạng này vì chưa xác minh được việc Spark lưu đáp án. Speaking/Writing không thay đổi.

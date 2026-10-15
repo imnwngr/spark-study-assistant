@@ -8,7 +8,7 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.4-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.5-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
   [![Tests](https://img.shields.io/badge/tests-123_passing-2A946A?style=flat-square)](#testing)
 
@@ -29,6 +29,10 @@
 
 > [!NOTE]
 > UI screenshots are **illustrative** (mock exercise data). The QTI reader has been tested with simulated five-choice and six-text-entry browser fixtures, but not every Spark interaction type or authenticated assignment has been verified.
+
+## v0.7.5 — Sequence payload fix and streamlined controls
+
+The QTI ordered tokens now reach the experimental Spark sequence adapter. The main button is **Solve**; the submission button is **Done & next**, with no extra confirmation popup. Spark state still must be verified; synthetic dragging might be ignored and is **not verified on the live site**. Submission remains gated on verified answers.
 
 ## v0.7.4 — Experimental sequence fill
 

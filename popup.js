@@ -234,7 +234,7 @@ async function applyAnswers() {
     if(q.options?.length && q.kind!=='multi' && q.kind!=='match' && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
     if(q.kind==='multi' && a.source==='qti' && (!Array.isArray(a.selectedIds)||
       a.selectedIds.some(id=>!q.choiceIds?.includes(id)))){missing++;continue;}
-    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{})});
+    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{}),...(q.kind==='order'&&a.source==='qti'&&Array.isArray(a.orderedTokens)?{orderedTokens:a.orderedTokens}:{})});
   }
   if(!answers.length){status(t('notReady'),'error');return;}
   progress('apply');status(t('filling'));
@@ -264,7 +264,6 @@ async function autoSolveAndFill() {
 
 async function submitAndNext(){
   if(state.submitting || !state.lastApplyVerified || !state.questions.length){status(t('autoNotApplied'),'error');return;}
-  if(!confirm(t('submitAsk')))return;
   state.submitting=true;$('submitNext').disabled=true;
   status(t('submitCheck'));
   try{

@@ -1,3 +1,10 @@
+## v0.7.5 — QTI sequence payload & compact actions
+
+- Fix: send QTI `orderedTokens` to the content-side order adapter (v0.7.4 silently omitted it and always skipped).
+- Rename main action to **Solve** and second action to **Done & next**, in all four languages.
+- Remove the extra browser confirmation dialog; the user click initiates the existing guarded submission flow.
+- The sequence drag mechanism remains **experimental**: synthetic mouse events may not be accepted by Spark. No DOM-only fallback; do not claim it works on a live exercise until verified.
+
 ## v0.7.4 — Experimental sequence fill
 
 - Added an experimental mouse-event adapter for Avallain `os-sequence` word tiles in **Solve & fill**.
