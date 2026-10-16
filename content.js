@@ -154,7 +154,10 @@
         localContext:tidy(correctionWidget.textContent).slice(0,1200),options:[],
         correctionTokens:correctionTiles.map(t=>tidy(t.textContent)),
         correctionModifiedTokens:correctionTiles.filter(t=>t.classList.contains('modified') ||
-          t.classList.contains('icTextCorrection__item--modified')).map(t=>tidy(t.textContent)),rubric,wordBank:'',hint:'',before:'',after:'',
+          t.classList.contains('icTextCorrection__item--modified')).map(t=>tidy(t.textContent)),
+        correctionModifiedIndices:correctionTiles.flatMap((t,i)=>
+          (t.classList.contains('modified')||t.classList.contains('icTextCorrection__item--modified'))?[i]:[]),
+        rubric,wordBank:'',hint:'',before:'',after:'',
         block:1,position:1,applyable:true});
       refs.set(id,{kind:'textCorrection',node:correctionWidget});
       const screen=screenInfo(root);
@@ -263,7 +266,7 @@
     for(const answer of result.answers||[]){
       if(questions.find(q=>q.id===answer.id)?.kind==='textCorrection' &&
         Array.isArray(answer.corrections)&&answer.corrections.length){
-        lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to,tokenIndex})=>({from,to,tokenIndex})));
+        lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to,tokenIndex,anchorVerified})=>({from,to,tokenIndex,anchorVerified})));
       }
     }
     return result;
@@ -551,8 +554,11 @@
         expected[index]=correctionNorm(edit.to);
         continue;
       }
-      if(current!==correctionNorm(edit.from))
-        return {status:'uncertain',detail:`QTI position ${index+1} changed unexpectedly.`};
+      if(current!==correctionNorm(edit.from)){
+        const modified=target.classList.contains('modified')||target.classList.contains('icTextCorrection__item--modified');
+        if(edit.anchorVerified!==true||!modified)
+          return {status:'uncertain',detail:`QTI position ${index+1} changed unexpectedly.`};
+      }
       if(!visible(target))return {status:'uncertain',detail:'Correction target is not visible.'};
       if([...parent.querySelectorAll('.tc_popup')].some(visible))
         return {status:'uncertain',detail:'Close the open Spark correction editor and retry.'};
@@ -600,7 +606,8 @@
           if(!trusted||trusted.length!==submitted.length||
             trusted.some((e,i)=>correctionNorm(e.from)!==correctionNorm(submitted[i].from)||
               correctionNorm(e.to)!==correctionNorm(submitted[i].to)||
-              e.tokenIndex!==submitted[i].tokenIndex))
+              e.tokenIndex!==submitted[i].tokenIndex||
+              e.anchorVerified!==submitted[i].anchorVerified))
             outcome={status:'skipped',detail:'Correction pairs were not verified against this screen’s QTI.'};
           else outcome=await setTextCorrections(found.node,response);
         }

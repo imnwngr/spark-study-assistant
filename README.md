@@ -8,7 +8,7 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.13-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.14-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
   [![Tests](https://img.shields.io/badge/tests-146_passing-2A946A?style=flat-square)](#testing)
 
@@ -238,6 +238,10 @@ Open Exercise Inspector from the popup. Select **Start recording**, switch to th
 ### v0.7.9: Review radio labels and word corrections
 
 Review radio groups now extract actual option captions rather than the decorative dot. The `ic-text-correction.replace` exercise can be mapped only when the published QTI proves a unique correction pair for each incorrect visible word; application uses Spark's own controls. **Synthetic clicks might not be accepted on the live Spark widget, so inspect the result before proceeding.** Other writing skills remain manual and auto-Next is disabled for this correction mode until grading is verified.
+
+### v0.7.14: Recover from older incorrect word edits
+
+When a previous build left `Current Date: Student` instead of `Current occupation: Student`, v0.7.13 refused the entire QTI screen. v0.7.14 binds each correction to the published full-sentence word position and permits a recovery only if the specific mismatched word is marked as edited by Spark. All other fixed words must still match the QTI sentence. Repeated Solve is safe in simulated DOM tests. No automatic submission is added for this mode; actual Spark grading remains unverified.
 
 ### v0.7.13: Word-correction capitalization safeguard
 

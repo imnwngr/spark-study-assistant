@@ -55,6 +55,44 @@
   // though its widget is a row of clickable .input-text spans, not dropdowns.
   // In this activity the declared value names the incorrect visible token;
   // the other published inlineChoice is the replacement offered by Spark.
+  // Align the ordered inlineChoice slots with the complete published QTI
+  // sentence, rather than locating them by word labels alone. This is needed
+  // when a previous run changed a wrong word to ANOTHER wrong word: for
+  // example Current Date instead of Current occupation. The alignment is
+  // accepted only when every ordinary (non-choice) token still agrees with
+  // the source and the full token count matches Spark's displayed tokens.
+  function correctionAnchors(xml,q,interactions){
+    const tokens=(q.correctionTokens||[]).map(correctionNorm);
+    if(!tokens.length||!interactions.length)return null;
+    const paragraphs=interactions.map(interaction=>{
+      let parent=interaction.parentNode;
+      while(parent&&name(parent)!=='p')parent=parent.parentNode;
+      return parent;
+    });
+    if(!paragraphs[0]||paragraphs.some(p=>p!==paragraphs[0]))return null;
+    const sequence=[],anchors=new Map();
+    const split=value=>(String(value||'').match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu)||[]).map(correctionNorm);
+    function visit(node){
+      if(node.nodeType===3||node.nodeType===4){sequence.push(...split(node.nodeValue));return;}
+      if(name(node)==='inlineChoiceInteraction'){
+        anchors.set(node,sequence.length);sequence.push(null);return;
+      }
+      if(node.childNodes?.length){for(const childNode of node.childNodes)visit(childNode);}
+      else if(node.children?.length){
+        // Plain Node test doubles have no childNodes. They are not trusted
+        // for positional matching unless text and child order are available.
+        if(node.text)sequence.push(...split(node.text));
+        for(const childNode of node.children)visit(childNode);
+      }else if(node.text)sequence.push(...split(node.text));
+    }
+    visit(paragraphs[0]);
+    if(sequence.length!==tokens.length||anchors.size!==interactions.length)return null;
+    // A matched-length sentence with mismatched static words is suspicious:
+    // do not silently fall back to matching only the five highlighted words.
+    if(sequence.some((value,i)=>value!==null&&value!==tokens[i]))return false;
+    return anchors;
+  }
+  const correctionModifiedAt=(q,i)=>Array.isArray(q.correctionModifiedIndices)&&q.correctionModifiedIndices.includes(i);
   function mapTextCorrection(xml,q){
     const fail=reason=>({answers:[],total:1,reason,diagnostics:[reason]});
     const prompt=norm(child(xml.getElementsByTagName('itemBody')[0],'div')?.textContent||
@@ -68,6 +106,8 @@
     const modified=(q.correctionModifiedTokens||[]).map(correctionNorm);
     if(!tokens.length)return fail('missingVisibleCorrectionTokens');
     const edits=[];
+    const anchors=correctionAnchors(xml,q,interactions);
+    if(anchors===false)return fail('correctionFixedContentMismatch');
     for(const el of interactions){
       const responseId=attr(el,'responseIdentifier');
       const declaration=declared.get(responseId);
@@ -84,15 +124,26 @@
       const replacementMatches=tokens.flatMap((token,index)=>
         token===correctionNorm(replacement.label)?[index]:[]);
       const alreadyCorrected=incorrectMatches.length===0 && replacementMatches.length===1 &&
-        modified.filter(t=>t===correctionNorm(replacement.label)).length===1;
-      if(incorrectMatches.length!==1 && !alreadyCorrected)
-        return fail('correctionTargetNotUnique');
-      const tokenIndex=alreadyCorrected?replacementMatches[0]:incorrectMatches[0];
-      // A single physical token must not be assigned to two different QTI
-      // corrections, even when the labels overlap after earlier edits.
-      if(edits.some(edit=>edit.tokenIndex===tokenIndex))
-        return fail('correctionPositionsOverlap');
-      edits.push({from:incorrect.label,to:replacement.label,responseId,tokenIndex});
+        (correctionModifiedAt(q,replacementMatches[0]) ||
+          modified.filter(t=>t===correctionNorm(replacement.label)).length===1);
+      let tokenIndex,anchorVerified=false;
+      if(anchors){
+        tokenIndex=anchors.get(el);
+        anchorVerified=true;
+        const current=tokens[tokenIndex];
+        // An unrecognised token is repairable only if Spark itself marks
+        // that precise QTI position as previously modified.
+        if(current!==correctionNorm(incorrect.label)&&current!==correctionNorm(replacement.label) &&
+          !correctionModifiedAt(q,tokenIndex))return fail('correctionUnexpectedUnmodifiedToken');
+        if(current===correctionNorm(replacement.label)&&
+          !correctionModifiedAt(q,tokenIndex) &&
+          modified.filter(t=>t===current).length!==1)return fail('correctionUnverifiedReplacement');
+      }else{
+        if(incorrectMatches.length!==1&&!alreadyCorrected)return fail('correctionTargetNotUnique');
+        tokenIndex=alreadyCorrected?replacementMatches[0]:incorrectMatches[0];
+      }
+      if(edits.some(edit=>edit.tokenIndex===tokenIndex))return fail('correctionPositionsOverlap');
+      edits.push({from:incorrect.label,to:replacement.label,responseId,tokenIndex,anchorVerified});
     }
     if(new Set(edits.map(e=>correctionNorm(e.from))).size!==edits.length)return fail('duplicateCorrectionTargets');
     return {answers:[{id:q.id,answer:edits.map(e=>`${e.from} → ${e.to}`).join(' ; '),
@@ -233,6 +284,8 @@
       const declarations=declaredResponses(xml).map;
       const visible=(questions[0].correctionTokens||[]).map(correctionNorm);
       const modified=(questions[0].correctionModifiedTokens||[]).map(correctionNorm);
+      const anchors=correctionAnchors(xml,questions[0],its);
+      if(anchors===false)return 0;
       const matches=its.every(el=>{
         const declaration=declarations.get(attr(el,'responseIdentifier'));
         const answer=declaration?.values[0];
@@ -240,6 +293,13 @@
         const chosen=choices.find(c=>attr(c,'identifier')===answer);
         const other=choices.find(c=>attr(c,'identifier')!==answer);
         if(!chosen||!other||choices.length!==2)return false;
+        if(anchors){
+          const position=anchors.get(el),current=visible[position];
+          return current===correctionNorm(chosen.textContent)||
+            (current===correctionNorm(other.textContent)&&
+              (correctionModifiedAt(questions[0],position)||modified.includes(current)))||
+            correctionModifiedAt(questions[0],position);
+        }
         const wrongCount=visible.filter(t=>t===correctionNorm(chosen.textContent)).length;
         return wrongCount===1||(wrongCount===0 &&
           visible.filter(t=>t===correctionNorm(other.textContent)).length===1 &&

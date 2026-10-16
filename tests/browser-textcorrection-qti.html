@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<h1 class="learningObject__title">1 | Review | Writing skill | 1e</h1>
+<div id="content_wrap_0" class="content-wrap"><div class="layout__rubric">Correct the five errors in the form.</div>
+<div class="layout__content"><div class="interaction ic-text-correction replace">
+<div class="contentblock ki24_view off"><p id="tokens"></p></div></div></div></div>
+<script>window.chrome={runtime:{onMessage:{addListener(fn){window.__listener=fn;}}}};</script>
+<script src="../qti.js"></script>
+<script>
+window.mockScenario=new URLSearchParams(location.search).get('scenario')||'fresh';
+const original=['First','name','Anna','Title','Smith','Address','25','Bridge','Street','Edinburgh','Postcode','EH9','8ED','Occupation','of','birth','23','02','2001','Nationality','Female','Language','of','origin','UK','Current','qualifications','Student'];
+const corrected=['First','name','Anna','Surname','Smith','Address','25','Bridge','Street','Edinburgh','Postcode','EH9','8ED','Date','of','birth','23','02','2001','Gender','Female','Country','of','origin','UK','Current','occupation','Student'];
+const widget=document.querySelector('.ki24_view');
+const values=window.mockScenario==='fresh'?original.slice():corrected.slice();
+const modified=new Set(window.mockScenario==='fresh'?[]:[3,13,19,21,26]);
+if(window.mockScenario==='corrupt')values[26]='Date';
+if(window.mockScenario==='fixed-changed')values[7]='Unknown';
+if(window.mockScenario==='unknown-unmodified'){values[26]='Date';modified.delete(26);}
+for(let i=0;i<values.length;i++){
+  const t=document.createElement('span');t.className='input-text';t.dataset.modelId=String(i+100);
+  t.textContent=values[i];if(modified.has(i))t.classList.add('modified','icTextCorrection__item--modified');
+  document.querySelector('#tokens').append(t,' ');
+}
+let done=0;
+widget.addEventListener('click',e=>{
+  const target=e.target.closest('.input-text');if(!target)return;
+  if(target.classList.contains('editing'))return;
+  const original=target.textContent;target.classList.add('editing');
+  const popup=document.createElement('div');popup.className='tc_popup';
+  const heading=document.createElement('h1');heading.textContent=original;
+  const field=document.createElement('input');field.type='text';
+  const button=document.createElement('a');button.className='button button-submit';button.textContent='OK';
+  button.addEventListener('click',()=>{
+    if(!field.value)return;
+    target.textContent=field.value;target.classList.remove('editing');
+    target.classList.add('modified','icTextCorrection__item--modified');popup.remove();done++;
+  });
+  popup.append(heading,field,button);widget.append(popup);field.focus();
+});
+const xml=`<assessmentItem>
+<responseDeclaration identifier="R0" baseType="string" cardinality="single"><correctResponse><value>Title</value></correctResponse></responseDeclaration>
+<responseDeclaration identifier="R1" baseType="string" cardinality="single"><correctResponse><value>Occupation</value></correctResponse></responseDeclaration>
+<responseDeclaration identifier="R2" baseType="string" cardinality="single"><correctResponse><value>Nationality</value></correctResponse></responseDeclaration>
+<responseDeclaration identifier="R3" baseType="string" cardinality="single"><correctResponse><value>Language</value></correctResponse></responseDeclaration>
+<responseDeclaration identifier="R4" baseType="string" cardinality="single"><correctResponse><value>qualifications</value></correctResponse></responseDeclaration>
+<itemBody><div><p>Correct the five errors in the form.</p>
+<div><p>First name: Anna<br/>
+<inlineChoiceInteraction responseIdentifier="R0"><inlineChoice identifier="Title">Title</inlineChoice><inlineChoice identifier="Surname">Surname</inlineChoice></inlineChoiceInteraction>: Smith<br/>
+Address: 25 Bridge Street, Edinburgh<br/>Postcode: EH9 8ED<br/>
+<inlineChoiceInteraction responseIdentifier="R1"><inlineChoice identifier="Occupation">Occupation</inlineChoice><inlineChoice identifier="Date">Date</inlineChoice></inlineChoiceInteraction> of birth: 23/02/2001<br/>
+<inlineChoiceInteraction responseIdentifier="R2"><inlineChoice identifier="Nationality">Nationality</inlineChoice><inlineChoice identifier="Gender">Gender</inlineChoice></inlineChoiceInteraction>: Female<br/>
+<inlineChoiceInteraction responseIdentifier="R3"><inlineChoice identifier="Language">Language</inlineChoice><inlineChoice identifier="Country">Country</inlineChoice></inlineChoiceInteraction> of origin: UK<br/>
+Current <inlineChoiceInteraction responseIdentifier="R4"><inlineChoice identifier="qualifications">qualifications</inlineChoice><inlineChoice identifier="occupation">occupation</inlineChoice></inlineChoiceInteraction>: Student
+</p></div></div></itemBody></assessmentItem>`;
+window.fetch=async()=>({ok:true,headers:{get(){return String(xml.length);}},text:async()=>JSON.stringify({'cat2653964.xml':xml})});
+const marker=document.createElement('script');marker.type='text/plain';marker.src='/cdn_proxy/fixture/data.js';document.head.append(marker);
+</script>
+<script src="../content.js"></script>
+<script>
+(async()=>{
+  const send=message=>new Promise(resolve=>window.__listener(message,null,resolve));
+  const scan=await send({type:'SPARK_SCAN'});
+  const qti=await send({type:'SPARK_QTI',ids:['q1']});
+  const actions=qti.result.answers;
+  const apply=actions.length?await send({type:'SPARK_APPLY',answers:actions}):{result:[]};
+  const tokens=[...widget.querySelectorAll('.input-text')].map(el=>el.textContent);
+  const rescanned=await send({type:'SPARK_SCAN'});
+  const secondQti=await send({type:'SPARK_QTI',ids:['q1']});
+  const again=secondQti.result.answers.length?await send({type:'SPARK_APPLY',answers:secondQti.result.answers}):{result:[]};
+  const finalTokens=[...widget.querySelectorAll('.input-text')].map(el=>el.textContent);
+  window.mockResult={scenario:window.mockScenario,scan:scan.result.questions[0]?.kind,
+    corrections:actions[0]?.corrections,reason:qti.result.reason,apply:apply.result,
+    tokens,again:again.result,finalTokens,done,secondReason:secondQti.result.reason,
+    modifiedIndices:rescanned.result.questions[0]?.correctionModifiedIndices};
+  const pre=document.createElement('pre');pre.id='test-result';pre.textContent=JSON.stringify(window.mockResult);document.body.append(pre);
+})().catch(e=>{
+  window.mockError=String(e?.stack||e);const pre=document.createElement('pre');pre.id='test-error';pre.textContent=window.mockError;document.body.append(pre);
+});
+</script></body></html>

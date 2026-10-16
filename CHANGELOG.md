@@ -1,3 +1,12 @@
+## v0.7.14 — Recover previously miscorrected QTI words (2026-10-16)
+
+- Fix v0.7.13 regression: a correction previously changed to an unexpected value (for example `Current Date: Student` left by v0.7.12) caused the entire correction screen to fail QTI mapping and **Solve** to do nothing.
+- Align all five correction slots against the **complete published QTI sentence** and the visible 28-token sequence; require every non-editable word to match, so identical words at other positions cannot be confused.
+- Permit repair of an unexpected token **only when Spark marks that exact QTI slot modified**; never guess which unmodified word to change, and reject corrupted fixed text.
+- Retain case-sensitive matching and the verified `.tc_popup` → input → **OK** → full-position audit path. No automatic submission of this correction type.
+- Add real-QTI/DOM browser regressions for fresh, already-solved, old corrupted, unmodified corrupted, and tampered fixed-word states, including repeated Solve.
+- This is still verified against an in-memory browser simulation, not authenticated Spark scoring.
+
 ## v0.7.13 — Case-sensitive word correction and full position verification (2026-10-16)
 
 - Fix a confirmed collision in Writing skill | 1e: the wrong token `Occupation` and the correct replacement `occupation` are **different** QTI words. Case-insensitive matching could change the last `Current occupation: Student` into the incorrect `Current Date: Student` on a later Solve.
