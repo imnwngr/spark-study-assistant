@@ -243,3 +243,7 @@ Trong bài **Review | Writing skill | 1e**, từ sai `Occupation` ở dòng ngà
 ### Exercise Inspector tổng quát (v0.7.15)
 
 Mở Inspector từ popup. Dùng **Capture screen** để chụp cấu trúc bài, hoặc **Start recording** → thao tác thủ công trên Spark → **Stop recording** → **Export JSON**. Trình ghi hiện theo dõi mọi loại `.interaction` và tự lưu cấu trúc trước/sau, kể cả radio, dropdown, Pronunciation và kéo-thả. Với bài có nhiều screen, chụp hoặc ghi từng screen riêng. Hãy kiểm tra JSON trước khi chia sẻ: dữ liệu có nội dung bài và giá trị đã nhập. Ghi được sự kiện **không đồng nghĩa** chức năng Solve đã hỗ trợ hoặc Spark đã chấm đúng.
+
+### Điền cụm từ từ ngân hàng (v0.7.16)
+
+Với bài `om-text-gap`, Solve có thể đặt cụm từ theo ánh xạ `gapMatchInteraction` đã xác minh bằng QTI: nhấn cụm từ rồi nhấn ô trống. Chỉ thực hiện nếu nhãn trong ngân hàng, số ô trống và dữ liệu QTI của screen trùng khớp. Không ghi đè ô đã điền sai, không chỉnh DOM giả hoặc khẳng định đã chấm điểm. Hỗ trợ một số bài Real life và Writing skill dạng biểu mẫu, không xử lý bài viết tự do.

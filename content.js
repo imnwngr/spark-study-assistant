@@ -132,6 +132,16 @@
       Math.max(...indices)===indices.length-1;
     return {index,count:reliable?indices.length:null};
   }
+  function wordPoolLabel(li){
+    const card=li.querySelector('.om-text-gap__draggable');
+    const label=tidy(card?.textContent||li.textContent);
+    // Spark exposes both a visible draggable and a measuring copy in a pool
+    // item. Only remove duplication when the two halves are IDENTICAL.
+    if(!card && label.length%2===0 && label.slice(0,label.length/2)===label.slice(label.length/2))
+      return tidy(label.slice(0,label.length/2));
+    return label;
+  }
+  const wordPoolGapText=gap=>tidy(gap.querySelector('.om-text-gap__draggable')?.textContent||'');
   function scan(){
     const questions=[],refs=new Map();
     const root=activeContentRoot();
@@ -144,6 +154,34 @@
     const bank=findWordBank(root,blocks,rubric);
     const sourceBlocks=blocks.length?blocks.filter(b=>b!==bank.block):
       [...root.querySelectorAll('.layout__content .interaction')].slice(0,3);
+    // Spark's published gapMatchInteraction drives om-text-gap. Its drag/drop
+    // widget also supports the native two-click flow: choose phrase, click gap.
+    // Restrict to ONE visible interaction, unique phrase labels and numbered
+    // targets; other matching/association activities remain manual.
+    const wordPool=root.querySelector('.interaction.om-text-gap .gap_match_view');
+    const poolWidget=wordPool?.closest('.interaction.om-text-gap');
+    if(poolWidget && !root.querySelector('textarea,[contenteditable="true"]')){
+      const pool=[...wordPool.querySelectorAll('.om-text-gap__pool-item')];
+      const gaps=[...wordPool.querySelectorAll('.om-text-gap__target-item')];
+      if(pool.length>=2 && gaps.length>=1 && pool.length<=60 && gaps.length<=60){
+        const foundLabels=pool.map(wordPoolLabel).filter(Boolean).concat(gaps.map(wordPoolGapText).filter(Boolean));
+        const labels=[...new Map(foundLabels.map(label=>[normalized(label),label])).values()];
+        const unique=labels.length===pool.length && labels.every(Boolean);
+        const passage=poolWidget.querySelector('.contentblock')?.cloneNode(true);
+        passage?.querySelectorAll('.om-text-gap__draggable,.om-text-gap__droppable-placeholder').forEach(el=>el.remove());
+        const id='q1',context=tidy(labels.join(' ')+' '+(passage?.textContent||'')).slice(0,2000);
+        questions.push({id,kind:'gapWordPool',context,localContext:context,options:[],
+          poolLabels:labels,gapCount:gaps.length,rubric,wordBank:labels.join(' | '),
+          hint:'',before:'',after:'',block:1,position:1,applyable:unique});
+        if(unique)refs.set(id,{kind:'gapWordPool',node:poolWidget});
+        const screen=screenInfo(root);
+        lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),
+          appliedOrder:new Map(),appliedWordPool:new Map(),submitted:false,screenIndex:screen.index,
+          screenCount:screen.count,activeRoot:root,trustedCorrections:new Map(),trustedWordPool:new Map()};
+        return {title,questions,screenIndex:screen.index,screenCount:screen.count,
+          frameUrl:location.origin+location.pathname,hasExercise:true};
+      }
+    }
     // A specific, answer-keyed word-correction activity is eligible even in
     // Writing skill. Essay/extended writing remains excluded.
     const correctionWidget=root.querySelector('.interaction.ic-text-correction.replace .ki24_view');
@@ -263,7 +301,13 @@
   function mapQtiAndRemember(source,questions){
     const result=globalThis.SparkQTI.fromDataJs(source,questions,new DOMParser());
     lastScan.trustedCorrections=new Map();
+    lastScan.trustedWordPool=new Map();
     for(const answer of result.answers||[]){
+      if(questions.find(q=>q.id===answer.id)?.kind==='gapWordPool' &&
+        answer.wordPoolVerified && Array.isArray(answer.pairs))
+        lastScan.trustedWordPool.set(answer.id,answer.pairs.map(({sourceId,targetId,source,targetIndex})=>
+          ({sourceId,targetId,source,targetIndex})));
+
       if(questions.find(q=>q.id===answer.id)?.kind==='textCorrection' &&
         Array.isArray(answer.corrections)&&answer.corrections.length){
         lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to,tokenIndex,anchorVerified})=>({from,to,tokenIndex,anchorVerified})));
@@ -282,7 +326,7 @@
       try{return new URL(el.src).pathname.endsWith('/data.js');}catch{return false;}
     });
     if(/\|\s*(?:speaking|writing(?: skill)?)\s*\|/i.test(lastScan.title) &&
-      !(questions.length===1&&questions[0].kind==='textCorrection'))
+      !(questions.length===1&&['textCorrection','gapWordPool'].includes(questions[0].kind)))
       return {answers:[],reason:'deferredCategory'};
     if(!script || !globalThis.SparkQTI)return {answers:[],reason:'noDataScript'};
     const url = new URL(script.src);
@@ -586,6 +630,53 @@
       return {status:'uncertain',detail:'Full word-correction position audit failed.'};
     return {status:'filled',detail:'All QTI correction positions verified in Spark; gradebook not confirmed.'};
   }
+  async function setWordPool(widget,response){
+    const pairs=Array.isArray(response.pairs)?response.pairs:[];
+    const pool=[...widget.querySelectorAll('.om-text-gap__pool-item')];
+    const gaps=[...widget.querySelectorAll('.om-text-gap__target-item')];
+    if(!response.wordPoolVerified||!pairs.length||pairs.length!==gaps.length||
+      !pool.length||pairs.length>60||pool.length>60 ||
+      new Set(pairs.map(p=>p.targetIndex)).size!==gaps.length ||
+      pairs.some(p=>!Number.isSafeInteger(p.targetIndex)||p.targetIndex<0||p.targetIndex>=gaps.length))
+      return {status:'skipped',detail:'Missing complete, indexed QTI gap mapping.'};
+    const visibleLabels=[...new Set(pool.map(wordPoolLabel).filter(Boolean).concat(
+      gaps.map(wordPoolGapText).filter(Boolean)).map(normalized))];
+    const qtiLabels=pairs.map(p=>normalized(p.source));
+    if(new Set(visibleLabels).size!==visibleLabels.length ||
+      qtiLabels.some(label=>!visibleLabels.includes(label)) ||
+      new Set(qtiLabels).size!==qtiLabels.length)
+      return {status:'skipped',detail:'Word pool labels do not uniquely match QTI.'};
+    const ordered=pairs.slice().sort((a,b)=>a.targetIndex-b.targetIndex);
+    for(const pair of ordered){
+      const gap=gaps[pair.targetIndex],wanted=normalized(pair.source);
+      if(!gap.isConnected)return {status:'uncertain',detail:'Gap was replaced during solving.'};
+      let value=normalized(wordPoolGapText(gap));
+      if(value===wanted)continue;
+      if(value)return {status:'uncertain',detail:`Gap ${pair.targetIndex+1} already contains a different phrase; no destructive overwrite.`};
+      const candidates=pool.filter(li=>normalized(wordPoolLabel(li))===wanted);
+      if(candidates.length!==1)return {status:'skipped',detail:'Phrase is ambiguous in word pool.'};
+      const card=candidates[0].querySelector('.om-text-gap__draggable');
+      const handle=card?.querySelector('.om-text-gap__draggable-handle');
+      const slot=gap.querySelector('.om-text-gap__droppable');
+      if(!handle || !slot || !visible(handle) || !visible(gap))
+        return {status:'uncertain',detail:'Spark pool handle or target unavailable.'};
+      handle.click();
+      await wait(65);
+      if(!card.classList.contains('selected'))
+        return {status:'uncertain',detail:'Spark did not select the phrase.'};
+      slot.click();
+      let placed=false;
+      for(let attempt=0;attempt<18;attempt++){
+        if(normalized(wordPoolGapText(gap))===wanted){placed=true;break;}
+        await wait(80);
+      }
+      if(!placed)return {status:'uncertain',detail:'Spark did not place the phrase into its gap.'};
+    }
+    const all=ordered.every(p=>normalized(wordPoolGapText(gaps[p.targetIndex]))===normalized(p.source));
+    return {status:all?'filled':'uncertain',detail:all?
+      'All QTI word-pool gaps verified on the live Spark widget; gradebook not confirmed.':
+      'Word-pool final state could not be verified.'};
+  }
   async function apply(answers) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){
       return (Array.isArray(answers)?answers:[]).map(a=>({id:a.id,status:'skipped',detail:'Screen changed; scan again.'}));
@@ -611,13 +702,23 @@
             outcome={status:'skipped',detail:'Correction pairs were not verified against this screen’s QTI.'};
           else outcome=await setTextCorrections(found.node,response);
         }
-        else if(found.kind==='order')outcome=await setSequence(found.node,response);
+        else if(found.kind==='gapWordPool'){
+          const trusted=lastScan.trustedWordPool?.get(id);
+          const supplied=Array.isArray(response.pairs)?response.pairs:[];
+          if(!response.wordPoolVerified || !trusted || trusted.length!==supplied.length ||
+            trusted.some((p,i)=>p.sourceId!==supplied[i].sourceId||p.targetId!==supplied[i].targetId||
+              p.source!==supplied[i].source||p.targetIndex!==supplied[i].targetIndex))
+            outcome={status:'skipped',detail:'Word-pool pairs were not verified against current QTI.'};
+          else outcome=await setWordPool(found.node,response);
+        }
+        else if(found.kind==='order')outcome=await setSequence(found.node,response);        else if(found.kind==='order')outcome=await setSequence(found.node,response);
         else if(found.kind==='dropdown')outcome=await setDropdown(found.node,value);
         else if(found.kind==='choice'||found.kind==='multi')outcome=await setChoice(found,value,response.selectedIds);
         else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
         if(outcome.status==='filled'){
           lastScan.applied.set(id,value);
           if(found.kind==='order')lastScan.appliedOrder.set(id,response.orderedTokens.map(tidy));
+          if(found.kind==='gapWordPool')lastScan.appliedWordPool.set(id,response.pairs.map(p=>({source:p.source,targetIndex:p.targetIndex})));
           if(found.items){
             const ids=found.items.filter(item=>isChecked(item.node)).map(item=>item.id);
             lastScan.appliedChoiceIds.set(id,ids);
@@ -657,6 +758,14 @@
       const wanted=normalized(lastScan.applied.get(id));
       if(!wanted)return false;
       if(ref.kind==='textCorrection')return false; // Spark grading persistence not verified.
+      if(ref.kind==='gapWordPool'){
+        const pairs=lastScan.appliedWordPool?.get(id);
+        const slots=[...ref.node.querySelectorAll('.om-text-gap__target-item')];
+        return Array.isArray(pairs)&&pairs.length===slots.length&&
+          pairs.every(p=>slots[p.targetIndex]&&
+            normalized(wordPoolGapText(slots[p.targetIndex]))===normalized(p.source));
+      }
+
       if(ref.kind==='order'){
         const order=lastScan.appliedOrder?.get(id);
         return Array.isArray(order) && sameWords(sequenceWords(ref.node),order) &&

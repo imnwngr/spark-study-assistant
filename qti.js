@@ -242,6 +242,36 @@
         const ordered=selectedIds.map(id=>choices.find(c=>c.id===id).label);
         selectedLabels=ordered;
         answer=ordered.join(' ').replace(/\s+([,.!?;:])/g,'$1');
+      } else if(type==='gapMatchInteraction' && q.kind==='gapWordPool'){
+        // On Spark's om-text-gap widget, QTI directed pairs name a gapText
+        // choice and a gap. The target IDs are resolved against the order of
+        // <gap> nodes IN the verified assessment, never against random DOM IDs.
+        const sourceNodes=descendants(el,'gapText'),gapNodes=descendants(el,'gap');
+        const sources=sourceNodes.map(n=>({id:attr(n,'identifier'),label:clean(n.textContent)}));
+        const gaps=gapNodes.map(n=>attr(n,'identifier'));
+        const sourceIds=sources.map(x=>x.id);
+        const visible=(q.poolLabels||[]).map(norm).sort();
+        if(!q.applyable || declaration.baseType!=='directedPair'||declaration.cardinality!=='multiple'||
+          sources.length<2 || gaps.length!==q.gapCount ||
+          sources.length!==(q.poolLabels||[]).length ||
+          sources.some(x=>!x.id||!x.label)||gaps.some(x=>!x)||
+          new Set(sourceIds).size!==sources.length||new Set(gaps).size!==gaps.length||
+          new Set(sources.map(x=>norm(x.label))).size!==sources.length ||
+          sources.map(x=>norm(x.label)).sort().join('\0')!==visible.join('\0') ||
+          declaration.values.length!==gaps.length){fail('wordPoolQtiMismatch');continue;}
+        const mapped=new Map();let safe=true;
+        for(const value of declaration.values){
+          const ids=clean(value).split(/\s+/);
+          if(ids.length!==2||!sourceIds.includes(ids[0])||!gaps.includes(ids[1])||mapped.has(ids[1])){safe=false;break;}
+          mapped.set(ids[1],ids[0]);
+        }
+        if(!safe||mapped.size!==gaps.length){fail('wordPoolPairsAmbiguous');continue;}
+        pairs=gaps.map((id,targetIndex)=>{
+          const sourceId=mapped.get(id);
+          return {sourceId,targetId:id,source:sources.find(c=>c.id===sourceId).label,
+            target:`Gap ${targetIndex+1}`,targetIndex};
+        });
+        answer=pairs.map(e=>`${e.source} → ${e.target}`).join(' ; ');
       } else if(type==='gapMatchInteraction'||type==='associateInteraction'){
         if(q.applyable||!['match','associate','manual'].includes(q.kind) ||
            !['directedPair','pair'].includes(declaration.baseType)||declaration.cardinality!=='multiple'){
@@ -265,6 +295,7 @@
         ...(selectedIds.length?{selectedIds,selectedLabels,choiceOptions}:{}),
         ...(alternatives.length?{acceptedVariants:alternatives}:{}),
         ...(pairs.length?{pairs}:{}),
+        ...(q.kind==='gapWordPool'?{wordPoolVerified:true}:{}),
         ...(type==='orderInteraction'?{manualOnly:false,orderedTokens:selectedLabels}:{}),
         explanation:'Declared correct response in the published exercise data.'});
     }
@@ -313,6 +344,20 @@
       const visible=(questions[0].orderTokens||[]).map(norm).sort();
       return tokens.length===visible.length && tokens.join('\u0000')===visible.join('\u0000')?1:0;
     }
+    if(its.length===1 && name(its[0])==='gapMatchInteraction' && questions[0]?.kind==='gapWordPool'){
+      const q=questions[0],el=its[0];
+      const bank=descendants(el,'gapText').map(n=>norm(n.textContent)).sort();
+      const shown=(q.poolLabels||[]).map(norm).sort();
+      if(bank.length<2||bank.length!==shown.length||bank.join('\0')!==shown.join('\0')||
+        descendants(el,'gap').length!==q.gapCount)return 0;
+      // Both the word bank AND sentence context must point to this screen.
+      const a=finger(el.textContent),b=finger(q.context||'');
+      if(!a||!b)return 0;
+      const aa=a.split(' '),bb=b.split(' '),bag=new Map();
+      for(const token of aa)bag.set(token,(bag.get(token)||0)+1);
+      let common=0;for(const token of bb){const n=bag.get(token)||0;if(n){common++;bag.set(token,n-1);}}
+      return 2*common/(aa.length+bb.length);
+    }
     let total=0,available=0;
     for(let i=0;i<its.length;i++){
       const a=finger(paragraph(its[i])),b=finger(questions[i]?.context||'');
@@ -331,7 +376,8 @@
     const files=assessmentsFromDataJs(source,parser);
     if(!files.length)return {answers:[],total:questions?.length||0,reason:'noAssessment',diagnostics:[]};
     const candidates=files.map(f=>({...f,mapped:mapAssessment(f.xml,questions),signature:signatureScore(f.xml,questions)}));
-    const viable=candidates.filter(f=>f.mapped.answers.length);
+    const viable=candidates.filter(f=>f.mapped.answers.length &&
+      !(questions.length===1&&questions[0]?.kind==='gapWordPool'&&f.signature<0.55));
     if(!viable.length)return {...candidates[0].mapped,answers:[],reason:'noMapping',format:'QTI'};
     viable.sort((a,b)=>b.mapped.answers.length-a.mapped.answers.length||b.signature-a.signature);
     const best=viable[0],runner=viable[1];

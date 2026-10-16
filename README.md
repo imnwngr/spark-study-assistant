@@ -250,3 +250,7 @@ In **Review | Writing skill | 1e**, the incorrect label `Occupation` (in “Occu
 ### Universal Exercise Inspector (v0.7.15)
 
 Open Inspector from the popup. Choose **Capture screen** to collect the current exercise, or **Start recording** → interact with Spark manually → **Stop recording** → **Export JSON**. The recorder now watches all exercise `.interaction` types and includes automatic before/after snapshots, even for radio, dropdown, pronunciation and dragging exercises. If Spark shows multiple screens, record or capture each separately. Review the JSON before sharing: it includes exercise text and values typed into exercise inputs. Recording an interaction is **not proof that a Solve adapter exists or the answer was scored correct**.
+
+### Word-pool gap matching (v0.7.16)
+
+For Spark `om-text-gap` exercises, Solve can apply QTI-verified `gapMatchInteraction` responses by selecting each phrase then the corresponding gap. Exact bank labels, gap count, QTI screen content and a unique assessment mapping are required. Existing wrong placements are left intact for manual correction; no DOM-only changes or assumed gradebook persistence. Supports qualifying Real life and structured Writing skill screens, but not open-ended writing.

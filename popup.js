@@ -89,7 +89,7 @@ function render() {
     const poly=document.createElementNS('http://www.w3.org/2000/svg','path');poly.setAttribute('d','m6 9 6 6 6-6');chevron.append(poly);
     end.append(badge,chevron);head.append(main,end);card.append(head);
     const body=el('div','question-body');
-    body.append(el('span','question-kind',t({dropdown:'kindDropdown',choice:'kindDropdown',multi:'kindDropdown',match:'kindManual',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
+    body.append(el('span','question-kind',t({dropdown:'kindDropdown',choice:'kindDropdown',multi:'kindDropdown',match:'kindManual',gapWordPool:'kindWordPool',text:'kindText',order:'kindOrder',correction:'kindCorrection',manual:'kindManual'}[q.kind]||'kindOther')));
     body.append(el('p','question-text',q.localContext||q.context));
     if(q.options?.length) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.options.join(' · ')}`));
     else if(q.wordBank) body.append(el('p','options-preview',`${t('optionsLabel')}: ${q.wordBank}`));
@@ -238,7 +238,7 @@ async function applyAnswers() {
     if(q.options?.length && q.kind!=='multi' && q.kind!=='match' && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
     if(q.kind==='multi' && a.source==='qti' && (!Array.isArray(a.selectedIds)||
       a.selectedIds.some(id=>!q.choiceIds?.includes(id)))){missing++;continue;}
-    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{}),...(q.kind==='order'&&a.source==='qti'&&Array.isArray(a.orderedTokens)?{orderedTokens:a.orderedTokens}:{}),...(q.kind==='textCorrection'&&a.source==='qti'&&Array.isArray(a.corrections)?{corrections:a.corrections}:{})});
+    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{}),...(q.kind==='order'&&a.source==='qti'&&Array.isArray(a.orderedTokens)?{orderedTokens:a.orderedTokens}:{}),...(q.kind==='textCorrection'&&a.source==='qti'&&Array.isArray(a.corrections)?{corrections:a.corrections}:{}),...(q.kind==='gapWordPool'&&a.source==='qti'&&a.wordPoolVerified&&Array.isArray(a.pairs)?{pairs:a.pairs,wordPoolVerified:true}:{})});
   }
   if(!answers.length){status(t('notReady'),'error');return;}
   progress('apply');status(t('filling'));

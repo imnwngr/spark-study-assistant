@@ -1,0 +1,55 @@
+<!doctype html><html><head><meta charset="utf-8"><style>.om-text-gap__pool-item,.om-text-gap__target-item{margin:6px;padding:5px;min-width:75px;min-height:24px;border:1px solid #aaa;display:inline-block}.om-text-gap__draggable-handle{padding:4px}</style></head><body>
+<h1 class="learningObject__title">1d | Real life | 1</h1>
+<div id="content_wrap_0" class="content-wrap"><div class="layout__rubric">Complete the dialogue with phrases from the box.</div><div class="layout__content">
+<div class="interaction om-text-gap package package-editable editor ic-speaking-and-recording variable-gaps drag-drop status-input wordpool-top wordpool">
+<div>Gapfill drag activity. Fill the gaps. Tap the item in the pool and then the destination to place.</div>
+<div class="gap_match_view">
+<ul class="pool pool--top">
+<li class="om-text-gap__pool-item" data-model-id="100"><div class="om-text-gap__draggable"><button class="om-text-gap__draggable-handle">How do you feel</button></div></li>
+<li class="om-text-gap__pool-item" data-model-id="101"><div class="om-text-gap__draggable"><button class="om-text-gap__draggable-handle">Have you got</button></div></li>
+<li class="om-text-gap__pool-item" data-model-id="102"><div class="om-text-gap__draggable"><button class="om-text-gap__draggable-handle">Try drinking</button></div></li>
+</ul>
+<div class="contentblock"><p>Doctor: <span class="om-text-gap__target-item" data-model-id="200"><span>Gap 1 of 3</span><span class="om-text-gap__droppable"></span></span> today? Patient: Not very well. Doctor: <span class="om-text-gap__target-item" data-model-id="201"><span>Gap 2 of 3</span><span class="om-text-gap__droppable"></span></span> a temperature? Doctor: <span class="om-text-gap__target-item" data-model-id="202"><span>Gap 3 of 3</span><span class="om-text-gap__droppable"></span></span> some tea.</p></div>
+</div></div></div></div>
+<script>window.chrome={runtime:{onMessage:{addListener(fn){window.__listener=fn;}}}};</script>
+<script src="../qti.js"></script>
+<script>
+const xml='<assessmentItem><responseDeclaration identifier="R" baseType="directedPair" cardinality="multiple"><correctResponse><value>T2 G2</value><value>T0 G0</value><value>T1 G1</value></correctResponse></responseDeclaration><itemBody><p><gapMatchInteraction responseIdentifier="R"><gapText identifier="T0">How do you feel</gapText><gapText identifier="T1">Have you got</gapText><gapText identifier="T2">Try drinking</gapText><p>Doctor: <gap identifier="G0"/> today? Patient: Not very well. Doctor: <gap identifier="G1"/> a temperature? Doctor: <gap identifier="G2"/> some tea.</p></gapMatchInteraction></p></itemBody></assessmentItem>';
+const source='window.bundle = {"sample.xml":'+JSON.stringify(xml)+'};';
+window.fetch=async()=>({ok:true,headers:{get(){return String(source.length);}},text:async()=>source});
+const marker=document.createElement('script');marker.type='text/plain';marker.src='/cdn_proxy/test/data.js';document.head.append(marker);
+let selected=null,actions=[];
+const widget=document.querySelector('.interaction.om-text-gap');
+widget.addEventListener('click',e=>{
+  const handle=e.target.closest('.om-text-gap__draggable-handle');
+  if(handle){if(window.noHandle)return;
+    if(selected)selected.classList.remove('selected');
+    selected=handle.closest('.om-text-gap__draggable');selected.classList.add('selected');actions.push(['select',handle.textContent]);return;
+  }
+  const slot=e.target.closest('.om-text-gap__droppable');
+  if(slot&&selected){
+    slot.appendChild(selected);selected.classList.remove('selected');actions.push(['place',slot.closest('.om-text-gap__target-item').getAttribute('data-model-id')]);selected=null;
+  }
+});
+</script>
+<script src="../content.js"></script>
+<script>
+(async()=>{
+ if(window.prefillMode){
+   const index=window.prefillMode==='correct'?0:2;
+   widget.querySelectorAll('.om-text-gap__draggable-handle')[index].click();
+   widget.querySelectorAll('.om-text-gap__droppable')[0].click();
+ }
+ const send=message=>new Promise(resolve=>window.__listener(message,null,resolve));
+ const scan=await send({type:'SPARK_SCAN'});
+ const qti=await send({type:'SPARK_QTI',ids:['q1']});
+ const apply=await send({type:'SPARK_APPLY',answers:qti.result.answers});
+ const current=[...document.querySelectorAll('.om-text-gap__target-item')].map(x=>x.querySelector('.om-text-gap__draggable')?.textContent||'');
+ const againScan=await send({type:'SPARK_SCAN'});
+ const secondQti=await send({type:'SPARK_QTI',ids:['q1']});
+ const secondApply=await send({type:'SPARK_APPLY',answers:secondQti.result.answers});
+ const result={againScan:againScan.result.questions.map(q=>q.kind),secondQti:secondQti.result.reason,secondApply:secondApply.result,scan:scan.result.questions.map(q=>({kind:q.kind,applyable:q.applyable,bank:q.poolLabels,gapCount:q.gapCount})),
+  qti:qti.result.reason,qtiDetails:qti.result,debug:(()=>{const files=SparkQTI.assessmentsFromDataJs(source,new DOMParser());return files.map(f=>({mapped:SparkQTI.mapAssessment(f.xml,scan.result.questions),signature:SparkQTI.signatureScore(f.xml,scan.result.questions),length:scan.result.questions[0].context.length,context:scan.result.questions[0].context}));})(),pairs:qti.result.answers[0]?.pairs?.map(p=>p.source),apply:apply.result,current,actions};
+ document.body.append(Object.assign(document.createElement('pre'),{id:'test-result',textContent:JSON.stringify(result)}));
+})().catch(e=>document.body.append(Object.assign(document.createElement('pre'),{id:'test-error',textContent:String(e?.stack||e)})));
+</script></body></html>

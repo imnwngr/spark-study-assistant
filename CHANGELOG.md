@@ -1,3 +1,12 @@
+## v0.7.16 — QTI-verified word-pool gap matching (2026-10-16)
+
+- Recognise `om-text-gap` word-pool activities in both Real life and structured Writing skill screens. Classify the widget by DOM, not generic `ic-speaking-and-recording` classes.
+- Read QTI `gapMatchInteraction` directed pairs, requiring unique bank labels, complete gap coverage, same screen text signature, and a consistent ordered mapping from QTI `<gap>` elements to visible targets.
+- Execute Spark's recorded native two-click flow (select pool phrase → select target gap), then verify the actual placed item after each step. No DOM-only reordering or guessed answers.
+- Never overwrite a nonempty incorrect target automatically or use unchecked AI output for the word-pool adapter.
+- Preserve all other Solve, screen navigation and universal Inspector behaviours.
+- Correctly bind v0.7.16 to the imnwngr Git author/committer identity.
+
 ## v0.7.15 — Universal Inspector for unsupported exercises (2026-10-16)
 
 - Analyze three user-supplied JSON exports: `1d | Real life | 1` and `2b | Pronunciation | 1` contain iframe information but **no exercise captures or interaction events**, because the previous recorder only attached to `ic-text-correction`; `2e | Writing skill | 2` is a longer `ic-text-correction` exercise with a truncated trace.
