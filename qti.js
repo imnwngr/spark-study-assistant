@@ -47,7 +47,45 @@
     // or as multiple <value> siblings. Only the FIRST valid variant is typed.
     return values.flatMap(v=>v.split('|').map(clean)).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i);
   }
+  // Spark text correction is encoded as inlineChoiceInteraction QTI even
+  // though its widget is a row of clickable .input-text spans, not dropdowns.
+  // In this activity the declared value names the incorrect visible token;
+  // the other published inlineChoice is the replacement offered by Spark.
+  function mapTextCorrection(xml,q){
+    const fail=reason=>({answers:[],total:1,reason,diagnostics:[reason]});
+    const prompt=norm(child(xml.getElementsByTagName('itemBody')[0],'div')?.textContent||
+      descendants(xml,'itemBody')[0]?.textContent||'');
+    if(!/correct\s+(?:the\s+)?\w*\s*errors?/.test(prompt))return fail('notWordCorrectionPrompt');
+    const interactions=interactionNodes(xml);
+    if(!interactions.length||interactions.length>20||
+      interactions.some(el=>name(el)!=='inlineChoiceInteraction'))return fail('correctionInteractionType');
+    const {map:declared}=declaredResponses(xml);
+    const tokens=(q.correctionTokens||[]).map(norm);
+    if(!tokens.length)return fail('missingVisibleCorrectionTokens');
+    const edits=[];
+    for(const el of interactions){
+      const responseId=attr(el,'responseIdentifier');
+      const declaration=declared.get(responseId);
+      const options=children(el,'inlineChoice').map(o=>({id:attr(o,'identifier'),label:clean(o.textContent)}));
+      if(!declaration||declaration.values.length!==1||options.length!==2||
+        options.some(o=>!o.id||!o.label)||new Set(options.map(o=>o.id)).size!==2)
+        return fail('correctionDeclarationMismatch');
+      const incorrect=options.find(o=>o.id===declaration.values[0]);
+      const replacement=options.find(o=>o.id!==declaration.values[0]);
+      if(!incorrect||!replacement||norm(incorrect.label)===norm(replacement.label))
+        return fail('correctionPairAmbiguous');
+      if(tokens.filter(t=>t===norm(incorrect.label)).length!==1)return fail('correctionTargetNotUnique');
+      edits.push({from:incorrect.label,to:replacement.label,responseId});
+    }
+    if(new Set(edits.map(e=>norm(e.from))).size!==edits.length)return fail('duplicateCorrectionTargets');
+    return {answers:[{id:q.id,answer:edits.map(e=>`${e.from} → ${e.to}`).join(' ; '),
+      corrections:edits,confidence:'high',source:'qti',manualOnly:false,
+      explanation:'Validated word-correction alternatives from published QTI; Spark UI must confirm changes.'}],
+      total:1,interactions:interactions.length,reason:'complete',diagnostics:[]};
+  }
   function mapAssessment(xml,questions){
+    if(Array.isArray(questions)&&questions.length===1&&questions[0]?.kind==='textCorrection')
+      return mapTextCorrection(xml,questions[0]);
     const diagnostics=[],interactions=interactionNodes(xml),{map:declared,diagnostics:declErrors}=declaredResponses(xml);
     diagnostics.push(...declErrors);
     if(!Array.isArray(questions)||!questions.length||interactions.length!==questions.length){
@@ -172,7 +210,20 @@
     return '';
   }
   function signatureScore(xml,questions){
-    const its=interactionNodes(xml); if(its.length!==questions.length)return 0;
+    const its=interactionNodes(xml);
+    if(questions.length===1&&questions[0]?.kind==='textCorrection'){
+      if(!its.length || its.some(el=>name(el)!=='inlineChoiceInteraction'))return 0;
+      const declarations=declaredResponses(xml).map;
+      const visible=(questions[0].correctionTokens||[]).map(norm);
+      const matches=its.every(el=>{
+        const declaration=declarations.get(attr(el,'responseIdentifier'));
+        const answer=declaration?.values[0];
+        const chosen=children(el,'inlineChoice').find(c=>attr(c,'identifier')===answer);
+        return chosen&&visible.filter(t=>t===norm(chosen.textContent)).length===1;
+      });
+      return matches?1:0;
+    }
+    if(its.length!==questions.length)return 0;
     if(its.length===1 && name(its[0])==='orderInteraction' && questions[0]?.kind==='order'){
       const tokens=children(its[0],'simpleChoice').map(c=>norm(c.textContent)).sort();
       const visible=(questions[0].orderTokens||[]).map(norm).sort();

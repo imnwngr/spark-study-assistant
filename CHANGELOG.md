@@ -1,3 +1,11 @@
+## v0.7.9 — Review choice repair and QTI word correction
+
+- Fixed Avallain radio choice labels: decorative dot icons no longer corrupt QTI option comparison; shuffled Cn_m IDs remain authoritative.
+- Added a dedicated `ic-text-correction.replace` QTI parser for the five word errors in Writing skill | 1e. Requires an explicit QTI correction prompt, unique visible tokens and exactly two published alternatives per error. Other Writing and Speaking tasks remain out of automation.
+- Added conservative Spark UI application for word correction: click the incorrect token and select one matching visible Spark replacement option. No DOM-only rewriting. If the widget does not expose a safe replacement control, the operation stops as uncertain. No automatic screen advance for correction without grading confirmation.
+- Added tests based on the supplied Review radio and Writing skill correction diagnostics.
+- Inspector remains available in the extension popup.
+
 ## v0.7.8 — Integrated Exercise Inspector
 
 - Open the **Exercise Inspector** using the new popup toolbar button; no DevTools Console needed.

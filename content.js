@@ -53,8 +53,12 @@
     const items=controls.map(el=>{
       const match=(el.id||el.className||'').match(/(?:input-(?:checkbox|radio)-(?:s\d+-)?c|choice-c)(\d+)-(\d+)/);
       const id=match?`C${match[1]}_${match[2]}`:'';
-      const label=tidy(el.innerText||el.textContent||
-        el.closest('label')?.innerText||el.parentElement?.querySelector('label')?.innerText||'');
+      // Spark prepends a visual "." icon to radio text. Reading the entire
+      // clickable div produces ".isn't" while QTI has "isn't".
+      const caption=el.querySelector('.is-radiobutton-choice-text,.is-checkbox-choice-text,.choice-text,.item .text');
+      const label=tidy(caption?.textContent||el.closest('label')?.innerText||
+        el.parentElement?.querySelector('label')?.innerText||el.innerText||el.textContent||'')
+        .replace(el.querySelector('.is-radiobutton__icon,.is-checkbox__icon') && !caption ? /^\.\s*/ : /^$/,'');
       return {node:el,id,label};
     });
     // QTI identifiers must be verifiable in the live DOM. Never infer from
@@ -117,6 +121,15 @@
       document.querySelector('.learningObject__heading')?.textContent ||
       document.title || 'Bài tập');
   }
+  function screenInfo(root){
+    const index=Number((root.id||'').match(/content_wrap_(\d+)/)?.[1]||0);
+    const roots=[...document.querySelectorAll('.content-wrap[id^="content_wrap_"]')];
+    const indices=roots.map(el=>Number(el.id.match(/^content_wrap_(\d+)$/)?.[1]));
+    const reliable=indices.length>1&&indices.every(Number.isInteger)&&
+      new Set(indices).size===indices.length&&Math.min(...indices)===0&&
+      Math.max(...indices)===indices.length-1;
+    return {index,count:reliable?indices.length:null};
+  }
   function scan(){
     const questions=[],refs=new Map();
     const root=activeContentRoot();
@@ -129,6 +142,23 @@
     const bank=findWordBank(root,blocks,rubric);
     const sourceBlocks=blocks.length?blocks.filter(b=>b!==bank.block):
       [...root.querySelectorAll('.layout__content .interaction')].slice(0,3);
+    // A specific, answer-keyed word-correction activity is eligible even in
+    // Writing skill. Essay/extended writing remains excluded.
+    const correctionWidget=root.querySelector('.interaction.ic-text-correction.replace .ki24_view');
+    const correctionTiles=correctionWidget?[...correctionWidget.querySelectorAll('.input-text')]:[];
+    if(correctionWidget&&correctionTiles.length&& !root.querySelector('textarea,[contenteditable="true"]')){
+      const id='q1';
+      questions.push({id,kind:'textCorrection',context:tidy(correctionWidget.textContent).slice(0,1200),
+        localContext:tidy(correctionWidget.textContent).slice(0,1200),options:[],
+        correctionTokens:correctionTiles.map(t=>tidy(t.textContent)),rubric,wordBank:'',hint:'',before:'',after:'',
+        block:1,position:1,applyable:true});
+      refs.set(id,{kind:'textCorrection',node:correctionWidget});
+      const screen=screenInfo(root);
+      lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),appliedOrder:new Map(),
+        submitted:false,screenIndex:screen.index,screenCount:screen.count,activeRoot:root,trustedCorrections:new Map()};
+      return {title,questions,screenIndex:screen.index,screenCount:screen.count,
+        frameUrl:location.origin+location.pathname,hasExercise:true};
+    }
     const hasEditable=sourceBlocks.some(b=>getControls(b).length||(!deferredCategory&&choiceGroup(b)));
     const hasSequence=sourceBlocks.some(b=>b.closest('.os-sequence')||b.querySelector('.os-sequence__list'));
     for(let b=0;b<sourceBlocks.length;b++){
@@ -182,7 +212,7 @@
       new Set(indices).size===indices.length && Math.min(...indices)===0 &&
       Math.max(...indices)===indices.length-1;
     const screenCount=reliableScreens?indices.length:null;
-    lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),appliedOrder:new Map(),submitted:false,screenIndex,screenCount,activeRoot:root};
+    lastScan={title,questions,refs,applied:new Map(),appliedChoiceIds:new Map(),appliedOrder:new Map(),submitted:false,screenIndex,screenCount,activeRoot:root,trustedCorrections:new Map()};
     return {title,questions,screenIndex,screenCount,frameUrl:location.origin+location.pathname,hasExercise:questions.length>0};
   }
   // Read the complete, *currently visible* exercise as a learner sees it.
@@ -223,6 +253,17 @@
       questionBlocks:number,text:lines.join('\n').trim()};
   }
 
+  function mapQtiAndRemember(source,questions){
+    const result=globalThis.SparkQTI.fromDataJs(source,questions,new DOMParser());
+    lastScan.trustedCorrections=new Map();
+    for(const answer of result.answers||[]){
+      if(questions.find(q=>q.id===answer.id)?.kind==='textCorrection' &&
+        Array.isArray(answer.corrections)&&answer.corrections.length){
+        lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to})=>({from,to})));
+      }
+    }
+    return result;
+  }
   async function readQTI(expectedIds) {
     const questions = lastScan.questions;
     if (!questions.length || !Array.isArray(expectedIds) ||
@@ -233,14 +274,15 @@
     const script = [...document.querySelectorAll('script[src]')].find(el=>{
       try{return new URL(el.src).pathname.endsWith('/data.js');}catch{return false;}
     });
-    if(/\|\s*(?:speaking|writing(?: skill)?)\s*\|/i.test(lastScan.title))
+    if(/\|\s*(?:speaking|writing(?: skill)?)\s*\|/i.test(lastScan.title) &&
+      !(questions.length===1&&questions[0].kind==='textCorrection'))
       return {answers:[],reason:'deferredCategory'};
     if(!script || !globalThis.SparkQTI)return {answers:[],reason:'noDataScript'};
     const url = new URL(script.src);
     // Never load other origins or user-supplied endpoints.
     if(url.origin!==location.origin || !/^\/cdn_proxy\//.test(url.pathname))return {answers:[],reason:'invalidDataOrigin'};
     if(qtiCache?.url===url.href && qtiCache?.source){
-      return globalThis.SparkQTI.fromDataJs(qtiCache.source,questions,new DOMParser());
+      return mapQtiAndRemember(qtiCache.source,questions);
     }
     if(!qtiPending){
       qtiPending=(async()=>{
@@ -259,7 +301,7 @@
     const source=await qtiPending;
     if(!source)return {answers:[],reason:'dataUnavailable'};
     qtiCache={url:url.href,source};
-    return globalThis.SparkQTI.fromDataJs(source,questions,new DOMParser());
+    return mapQtiAndRemember(source,questions);
   }
   function setText(el, value) {
     el.focus();
@@ -425,6 +467,60 @@
       'Visible sequence verified; Spark persistence is not independently confirmed.':
       'Sequence order could not be verified.'};
   }
+  // Only real Spark UI clicks can update its correction state. No DOM rewrite.
+  const visible=node=>{
+    if(!node?.isConnected || node.closest('[hidden],[inert]'))return false;
+    const style=getComputedStyle(node);
+    return style.display!=='none'&&style.visibility!=='hidden'&&node.getClientRects().length>0;
+  };
+  async function setTextCorrections(widget,response){
+    const edits=response.corrections;
+    if(!Array.isArray(edits)||!edits.length||edits.length>20 ||
+      edits.some(e=>!e||typeof e.from!=='string'||typeof e.to!=='string'||
+        !e.from.trim()||!e.to.trim()||normalized(e.from)===normalized(e.to)))
+      return {status:'skipped',detail:'Missing validated QTI word-correction pairs.'};
+    for(const edit of edits){
+      const tokens=[...widget.querySelectorAll('.input-text')];
+      const matching=tokens.filter(n=>normalized(n.textContent)===normalized(edit.from));
+      const already=tokens.some(n=>normalized(n.textContent)===normalized(edit.to));
+      // A single target token is required. Words from other questions may repeat.
+      if(matching.length!==1){
+        if(matching.length===0&&already)continue;
+        return {status:'uncertain',detail:`Cannot uniquely locate word: ${edit.from}`};
+      }
+      const target=matching[0];
+      if(!visible(target))return {status:'uncertain',detail:'Correction target is not visible.'};
+      target.click();
+      await wait(140);
+      if(normalized(target.textContent)===normalized(edit.to))continue;
+      const parent=widget.closest('.ic-text-correction');
+      const choiceSelector='[role="option"],[role="menuitem"],.listbox__choice,.ui-menu-item,'+
+        '.correction-option,.replace-option,[class*="correction-choice"],[class*="replacement-choice"]';
+      const options=[...(parent?.querySelectorAll(choiceSelector)||[]),
+        ...document.querySelectorAll('[role="option"],[role="menuitem"],.listbox__choice')]
+        .filter(el=>visible(el)&&!el.closest('.ki24_view')&&normalized(el.textContent)===normalized(edit.to));
+      const unique=[...new Set(options)];
+      if(unique.length===1){
+        unique[0].click();
+      }else if(unique.length===0){
+        // Some correction variants open a real, temporary text editor. Only
+        // write to the single new visible input inside this interaction.
+        const editors=[...(parent?.querySelectorAll('input,textarea,[contenteditable="true"]')||[])]
+          .filter(node=>isTextField(node)&&visible(node) &&
+            (node.closest('[role="dialog"],.popup,.popper,.ki24_edit,.ki24_edit_view') ||
+             !widget.contains(node)));
+        if(editors.length!==1)return {status:'uncertain',detail:`No unique Spark replacement control for ${edit.from}.`};
+        if(!setText(editors[0],edit.to))return {status:'uncertain',detail:'Spark text editor rejected replacement.'};
+        editors[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',bubbles:true}));
+        editors[0].dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',code:'Enter',bubbles:true}));
+      }else return {status:'uncertain',detail:`Multiple replacement choices for ${edit.from}.`};
+      await wait(160);
+      if(normalized(target.textContent)!==normalized(edit.to) &&
+        [...widget.querySelectorAll('.input-text')].some(n=>normalized(n.textContent)===normalized(edit.from)))
+        return {status:'uncertain',detail:`Spark did not visibly apply ${edit.to}.`};
+    }
+    return {status:'filled',detail:'Correction changes verified in visible Spark controls; gradebook not confirmed.'};
+  }
   async function apply(answers) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){
       return (Array.isArray(answers)?answers:[]).map(a=>({id:a.id,status:'skipped',detail:'Screen changed; scan again.'}));
@@ -439,7 +535,16 @@
       if (!(found.items?found.items.every(item=>document.contains(item.node)):document.contains(found.node))) {lastScan.applied.delete(id);results.push({id,status:'skipped',detail:'Bài đã thay đổi. Hãy quét lại.'});continue;}
       try {
         let outcome;
-        if(found.kind==='order')outcome=await setSequence(found.node,response);
+        if(found.kind==='textCorrection'){
+          const trusted=lastScan.trustedCorrections?.get(id);
+          const submitted=Array.isArray(response.corrections)?response.corrections:[];
+          if(!trusted||trusted.length!==submitted.length||
+            trusted.some((e,i)=>normalized(e.from)!==normalized(submitted[i].from)||
+              normalized(e.to)!==normalized(submitted[i].to)))
+            outcome={status:'skipped',detail:'Correction pairs were not verified against this screen’s QTI.'};
+          else outcome=await setTextCorrections(found.node,response);
+        }
+        else if(found.kind==='order')outcome=await setSequence(found.node,response);
         else if(found.kind==='dropdown')outcome=await setDropdown(found.node,value);
         else if(found.kind==='choice'||found.kind==='multi')outcome=await setChoice(found,value,response.selectedIds);
         else outcome={status:setText(found.node,value)?'filled':'uncertain',detail:'Text field updated.'};
@@ -484,6 +589,7 @@
       if(!(ref.items?ref.items.every(item=>document.contains(item.node)):document.contains(ref.node)))return false;
       const wanted=normalized(lastScan.applied.get(id));
       if(!wanted)return false;
+      if(ref.kind==='textCorrection')return false; // Spark grading persistence not verified.
       if(ref.kind==='order'){
         const order=lastScan.appliedOrder?.get(id);
         return Array.isArray(order) && sameWords(sequenceWords(ref.node),order) &&

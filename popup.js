@@ -238,7 +238,7 @@ async function applyAnswers() {
     if(q.options?.length && q.kind!=='multi' && q.kind!=='match' && !q.options.some(o=>normalized(o)===normalized(answer))) {missing++;continue;}
     if(q.kind==='multi' && a.source==='qti' && (!Array.isArray(a.selectedIds)||
       a.selectedIds.some(id=>!q.choiceIds?.includes(id)))){missing++;continue;}
-    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{}),...(q.kind==='order'&&a.source==='qti'&&Array.isArray(a.orderedTokens)?{orderedTokens:a.orderedTokens}:{})});
+    answers.push({id:q.id,answer,...(a.selectedIds?.length&&a.source==='qti'?{selectedIds:a.selectedIds}:{}),...(q.kind==='order'&&a.source==='qti'&&Array.isArray(a.orderedTokens)?{orderedTokens:a.orderedTokens}:{}),...(q.kind==='textCorrection'&&a.source==='qti'&&Array.isArray(a.corrections)?{corrections:a.corrections}:{})});
   }
   if(!answers.length){status(t('notReady'),'error');return;}
   progress('apply');status(t('filling'));
@@ -252,7 +252,8 @@ async function applyAnswers() {
     $('fillReport').textContent=t('fillReport',{filled,manual,uncertain,skipped:missing+results.filter(x=>x.status==='skipped').length});
     status(t('fillDone',{n:results.length}),filled?'success':'normal');
     // Require a verified page-level apply, including all recognised gaps, before enabling submit.
-    state.lastApplyVerified=missing===0 && results.length===state.questions.length && results.every(x=>x.status==='filled');
+    state.lastApplyVerified=missing===0 && results.length===state.questions.length &&
+      results.every(x=>x.status==='filled') && !state.questions.some(q=>q.kind==='textCorrection');
     $('submitNext').disabled=!state.lastApplyVerified;
     if(filled) { document.querySelector('[data-phase="apply"]')?.classList.add('is-done'); document.querySelector('[data-phase="apply"]')?.classList.remove('is-current'); }
     return state.lastApplyVerified;
@@ -272,6 +273,12 @@ async function autoSolveAndFill() {
       if(!(await solve()))break;
       if(!(await applyAnswers()))break;
       // QTI provides known keys. AI guesses or manual edits cannot establish correctness.
+      // The correction widget can show the replacement without confirming
+      // Spark's gradebook model. Never advance automatically in this mode.
+      if(state.questions.some(q=>q.kind==='textCorrection')){
+        status('Correction screen processed. Check Spark feedback before moving on.','normal');
+        break;
+      }
       if(!state.verifiedQti){
         status('Solved this screen. Automatic Next requires verified QTI answers.','normal');
         break;
