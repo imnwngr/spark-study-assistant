@@ -16,9 +16,9 @@ Sửa lỗi v0.7.4 làm mất `orderedTokens` khi gọi adapter kéo-thả. Nút
   Tiện ích Chrome giúp đọc, xem lại và điền đáp án cho những dạng bài được hỗ trợ trên National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#cài-đặt)
-  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.3-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Phiên bản](https://img.shields.io/badge/phiên_bản-0.7.13-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-thuần-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#cấu-trúc-dự-án)
-  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-123_đạt-2A946A?style=flat-square)](#kiểm-thử)
+  [![Kiểm thử](https://img.shields.io/badge/kiểm_thử-146_đạt-2A946A?style=flat-square)](#kiểm-thử)
 
   [**Cài đặt**](#cài-đặt) · [**Cơ chế tìm đáp án**](#cơ-chế-tìm-đáp-án) · [**Cấu trúc**](#cấu-trúc-dự-án) · [**English**](README.md)
 </div>
@@ -231,3 +231,7 @@ Mở Exercise Inspector từ popup → **Start recording** → quay lại Spark,
 ### v0.7.9: Radio Review và sửa từ sai
 
 Đọc nhãn thật của radio để không lẫn dấu chấm trang trí khi đối chiếu QTI. Dạng `ic-text-correction.replace` chỉ được xử lý khi QTI khớp duy nhất từng từ sai với cặp lựa chọn tương ứng; thao tác thử sử dụng điều khiển gốc của Spark, không tự sửa DOM. Chưa xác nhận hành vi trên Spark thật, vì vậy khi không tìm thấy lựa chọn an toàn extension sẽ dừng; không tự Next đối với dạng sửa từ này. Các dạng Writing/Speaking còn lại vẫn không tự giải.
+
+### v0.7.13: Sửa nhầm từ do chữ hoa/chữ thường
+
+Trong bài **Review | Writing skill | 1e**, từ sai `Occupation` ở dòng ngày sinh phải phân biệt với từ đúng `occupation` ở dòng nghề nghiệp. Bản này gắn cặp đáp án QTI với **vị trí từ cụ thể**, kiểm tra toàn bộ từ sau mỗi lần sửa và thử hồi quy khi bấm **Solve** nhiều lần. Nếu bản cũ đã đổi dòng cuối thành “Current Date: Student”, cần khôi phục thủ công từ `qualifications` hoặc `occupation` (hoặc xóa đáp án bài tập) trước khi thử bản mới. Kiểm tra DOM không thay thế kết quả chấm của Spark.

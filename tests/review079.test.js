@@ -93,3 +93,30 @@ test('trace-backed correction adapter uses tc_popup input and OK instead of synt
   const correction=content.slice(content.indexOf('async function confirmCorrection'),content.indexOf('async function apply(answers)'));
   assert.doesNotMatch(correction,/KeyboardEvent\('keydown'/);
 });
+
+
+test('already corrected occupation never masquerades as incorrect Occupation on a repeated Solve',()=>{
+  const previouslySolved=correctionQuestion()[0];
+  previouslySolved.correctionTokens=['First','name','Anna','Surname','Smith','Address','Date',
+    'Gender','Country','occupation','other'];
+  previouslySolved.correctionModifiedTokens=['Surname','Date','Gender','Country','occupation'];
+  const mapped=Q.mapAssessment(correctionXml(),[previouslySolved]);
+  assert.equal(mapped.reason,'complete',JSON.stringify(mapped));
+  assert.deepEqual(mapped.answers[0].corrections.map(e=>e.from),pairs.map(p=>p[0]));
+  assert.deepEqual(mapped.answers[0].corrections.map(e=>e.to),pairs.map(p=>p[1]));
+  assert.equal(mapped.answers[0].corrections[1].tokenIndex,6);
+  assert.equal(mapped.answers[0].corrections[4].tokenIndex,9);
+  assert.equal(Q.signatureScore(correctionXml(),[previouslySolved]),1);
+});
+
+test('partially edited capitalization collision resolves each QTI pair to its own physical word',()=>{
+  const partial=correctionQuestion()[0];
+  partial.correctionTokens=['Title','Date','Nationality','Language','occupation'];
+  partial.correctionModifiedTokens=['Date','occupation'];
+  const mapped=Q.mapAssessment(correctionXml(),[partial]);
+  assert.equal(mapped.reason,'complete',JSON.stringify(mapped));
+  assert.deepEqual(mapped.answers[0].corrections.map(e=>e.tokenIndex),[0,1,2,3,4]);
+  const corrupt={...partial,correctionTokens:['Title','Date','Nationality','Language','Date'],
+    correctionModifiedTokens:['Date']};
+  assert.equal(Q.mapAssessment(correctionXml(),[corrupt]).answers.length,0);
+});

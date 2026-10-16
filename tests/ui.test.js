@@ -60,7 +60,7 @@ test('popup sizing does not depend on its initial viewport width',()=>{
 });
 test('design version matches the extension manifest',()=>{
   const manifest=JSON.parse(read('manifest.json'));
-  assert.equal(manifest.version,'0.7.12');
+  assert.equal(manifest.version,'0.7.13');
   assert.match(options,/data-i18n="version"/);
 });
 

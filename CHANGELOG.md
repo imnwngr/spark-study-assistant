@@ -1,3 +1,11 @@
+## v0.7.13 — Case-sensitive word correction and full position verification (2026-10-16)
+
+- Fix a confirmed collision in Writing skill | 1e: the wrong token `Occupation` and the correct replacement `occupation` are **different** QTI words. Case-insensitive matching could change the last `Current occupation: Student` into the incorrect `Current Date: Student` on a later Solve.
+- Map correction pairs to unique QTI-backed visible token positions, retain their indices across popup messages, and verify the same position during application.
+- Audit **every** word-correction token after each confirmed Spark UI edit and at the end; stop with an uncertainty report if a different token changes.
+- Add regression coverage for repeated Solve after all five edits, partially edited exercises, and QTI position mismatches. No auto-submit/auto-next for unverified grading.
+- An exercise previously corrupted by an old build must be reset or manually restored before trying this update. No unsupported auto-repair of ambiguous data.
+
 ## 0.7.12 — Trace-backed word correction (2026-10-16)
 
 - Use the real Spark `.tc_popup` input and `a.button-submit` OK control for verified QTI word corrections. No synthetic Enter or DOM-only rewrite.

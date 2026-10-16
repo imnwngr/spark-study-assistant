@@ -37,12 +37,14 @@ with sync_playwright() as p:
         assert result['qti'] == 'complete', result
         if not missing_ok:
             assert result['apply'][0]['status'] == 'filled', result
-            assert result['done'] == 3, result
-            assert result['tokens'] == ['Surname', 'Date', 'Gender'], result
+            assert result['done'] == 5, result
+            assert result['again'][0]['status'] == 'filled', result
+            assert result['tokens'] == ['Surname', 'Date', 'Gender', 'Country', 'occupation'], result
+            assert result['tokensAfter'] == result['tokens'], result
         else:
             assert result['apply'][0]['status'] == 'uncertain', result
             assert result['done'] == 0, result
-            assert result['tokens'] == ['Title', 'Occupation', 'Nationality'], result
+            assert result['tokens'] == ['Title', 'Occupation', 'Nationality', 'Language', 'qualifications'], result
         page.close()
     browser.close()
 print('Spark tc_popup real-UI simulation: 2/2 cases passed')

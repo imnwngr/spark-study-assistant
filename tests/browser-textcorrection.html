@@ -4,12 +4,14 @@
 <div class="layout__content"><div class="interaction ic-text-correction replace">
 <div class="contentblock ki24_view off"><p><span class="input-text" data-model-id="101">Title</span>:
 <span class="input-text" data-model-id="102">Occupation</span>:
-<span class="input-text" data-model-id="103">Nationality</span>:</p></div>
+<span class="input-text" data-model-id="103">Nationality</span>:
+<span class="input-text" data-model-id="104">Language</span>:
+Current <span class="input-text" data-model-id="105">qualifications</span>: Student</p></div>
 </div></div></div>
 <script>window.chrome={runtime:{onMessage:{addListener(fn){window.__listener=fn;}}}};</script>
 <script src="../qti.js"></script>
 <script>
-const corrections=[{from:'Title',to:'Surname'},{from:'Occupation',to:'Date'},{from:'Nationality',to:'Gender'}];
+const corrections=[{from:'Title',to:'Surname',tokenIndex:0},{from:'Occupation',to:'Date',tokenIndex:1},{from:'Nationality',to:'Gender',tokenIndex:2},{from:'Language',to:'Country',tokenIndex:3},{from:'qualifications',to:'occupation',tokenIndex:4}];
 window.SparkQTI.fromDataJs=()=>({reason:'complete',answers:[{id:'q1',source:'qti',confidence:'high',answer:corrections.map(x=>x.from+' → '+x.to).join(' ; '),corrections}]});
 window.fetch=async()=>({ok:true,headers:{get(){return '3';}},text:async()=>"ok!"});
 const marker=document.createElement('script');marker.type='text/plain';marker.src='/cdn_proxy/fixture/data.js';document.head.append(marker);
@@ -41,8 +43,15 @@ widget.addEventListener('click',e=>{
   const apply=await send({type:'SPARK_APPLY',answers:qti.result.answers});
   const tokens=[...widget.querySelectorAll('.input-text')].map(x=>x.textContent);
   const reopened=await send({type:'SPARK_SCAN'});
+  let again=null;
+  if(!window.mockNoOK){
+    const secondQti=await send({type:'SPARK_QTI',ids:['q1']});
+    again=await send({type:'SPARK_APPLY',answers:secondQti.result.answers});
+  }
   const r={scan:scan.result.questions.map(q=>q.kind),qti:qti.result.reason,
-    apply:apply.result,done,tokens,reopenedModified:reopened.result.questions[0].correctionModifiedTokens};
+    apply:apply.result,again:again?.result,done,tokens,
+    tokensAfter:[...widget.querySelectorAll('.input-text')].map(x=>x.textContent),
+    reopenedModified:reopened.result.questions[0].correctionModifiedTokens};
   document.body.append(Object.assign(document.createElement('pre'),{id:'test-result',textContent:JSON.stringify(r)}));
 })().catch(e=>document.body.append(Object.assign(document.createElement('pre'),{id:'test-error',textContent:String(e)})));
 </script>

@@ -8,9 +8,9 @@
   A local-first Chrome extension for reviewing and filling supported exercises on National Geographic Learning Spark.
 
   [![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest_V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](#installation)
-  [![Release](https://img.shields.io/badge/version-0.7.5-8C83F4?style=flat-square)](CHANGELOG.md)
+  [![Release](https://img.shields.io/badge/version-0.7.13-8C83F4?style=flat-square)](CHANGELOG.md)
   [![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=111)](#project-structure)
-  [![Tests](https://img.shields.io/badge/tests-123_passing-2A946A?style=flat-square)](#testing)
+  [![Tests](https://img.shields.io/badge/tests-146_passing-2A946A?style=flat-square)](#testing)
 
   [**Get started**](#installation) · [**How answers are found**](#answer-pipeline) · [**Project structure**](#project-structure) · [**Tiếng Việt**](README.vi.md)
 </div>
@@ -238,3 +238,7 @@ Open Exercise Inspector from the popup. Select **Start recording**, switch to th
 ### v0.7.9: Review radio labels and word corrections
 
 Review radio groups now extract actual option captions rather than the decorative dot. The `ic-text-correction.replace` exercise can be mapped only when the published QTI proves a unique correction pair for each incorrect visible word; application uses Spark's own controls. **Synthetic clicks might not be accepted on the live Spark widget, so inspect the result before proceeding.** Other writing skills remain manual and auto-Next is disabled for this correction mode until grading is verified.
+
+### v0.7.13: Word-correction capitalization safeguard
+
+In **Review | Writing skill | 1e**, the incorrect label `Occupation` (in “Occupation of birth”) and the valid lowercase `occupation` (in “Current occupation”) must never be treated as the same token. This version maps each QTI correction to one visible word position and verifies the complete set of word positions after editing. Repeated **Solve** is regression-tested. If an older version produced “Current Date: Student”, restore the word to `qualifications` or `occupation` manually (or clear the exercise) before using this version. Spark grading is not guaranteed by local DOM checks.

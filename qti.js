@@ -6,6 +6,10 @@
   const MAX_SOURCE=2_000_000,MAX_XML=1_000_000;
   const clean=value=>String(value??'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
   const norm=value=>clean(value).normalize('NFKC').toLowerCase().replace(/[’]/g,"'");
+  // Word-correction alternatives can differ ONLY in capitalization:
+  // "Occupation" (incorrect on the DOB line) vs "occupation" (correct
+  // on the Current occupation line). Never case-fold correction tokens.
+  const correctionNorm=value=>clean(value).normalize('NFKC').replace(/[’]/g,"'");
   const name=node=>node?.localName||node?.nodeName?.split(':').pop()||'';
   const children=(node,tag)=>[...(node?.children||[])].filter(el=>name(el)===tag);
   const child=(node,tag)=>children(node,tag)[0]||null;
@@ -60,8 +64,8 @@
     if(!interactions.length||interactions.length>20||
       interactions.some(el=>name(el)!=='inlineChoiceInteraction'))return fail('correctionInteractionType');
     const {map:declared}=declaredResponses(xml);
-    const tokens=(q.correctionTokens||[]).map(norm);
-    const modified=(q.correctionModifiedTokens||[]).map(norm);
+    const tokens=(q.correctionTokens||[]).map(correctionNorm);
+    const modified=(q.correctionModifiedTokens||[]).map(correctionNorm);
     if(!tokens.length)return fail('missingVisibleCorrectionTokens');
     const edits=[];
     for(const el of interactions){
@@ -73,16 +77,24 @@
         return fail('correctionDeclarationMismatch');
       const incorrect=options.find(o=>o.id===declaration.values[0]);
       const replacement=options.find(o=>o.id!==declaration.values[0]);
-      if(!incorrect||!replacement||norm(incorrect.label)===norm(replacement.label))
+      if(!incorrect||!replacement||correctionNorm(incorrect.label)===correctionNorm(replacement.label))
         return fail('correctionPairAmbiguous');
-      const incorrectCount=tokens.filter(t=>t===norm(incorrect.label)).length;
-      const replacementCount=tokens.filter(t=>t===norm(replacement.label)).length;
-      if(incorrectCount!==1 && !(incorrectCount===0 && replacementCount===1 &&
-        modified.filter(t=>t===norm(replacement.label)).length===1))
+      const incorrectMatches=tokens.flatMap((token,index)=>
+        token===correctionNorm(incorrect.label)?[index]:[]);
+      const replacementMatches=tokens.flatMap((token,index)=>
+        token===correctionNorm(replacement.label)?[index]:[]);
+      const alreadyCorrected=incorrectMatches.length===0 && replacementMatches.length===1 &&
+        modified.filter(t=>t===correctionNorm(replacement.label)).length===1;
+      if(incorrectMatches.length!==1 && !alreadyCorrected)
         return fail('correctionTargetNotUnique');
-      edits.push({from:incorrect.label,to:replacement.label,responseId});
+      const tokenIndex=alreadyCorrected?replacementMatches[0]:incorrectMatches[0];
+      // A single physical token must not be assigned to two different QTI
+      // corrections, even when the labels overlap after earlier edits.
+      if(edits.some(edit=>edit.tokenIndex===tokenIndex))
+        return fail('correctionPositionsOverlap');
+      edits.push({from:incorrect.label,to:replacement.label,responseId,tokenIndex});
     }
-    if(new Set(edits.map(e=>norm(e.from))).size!==edits.length)return fail('duplicateCorrectionTargets');
+    if(new Set(edits.map(e=>correctionNorm(e.from))).size!==edits.length)return fail('duplicateCorrectionTargets');
     return {answers:[{id:q.id,answer:edits.map(e=>`${e.from} → ${e.to}`).join(' ; '),
       corrections:edits,confidence:'high',source:'qti',manualOnly:false,
       explanation:'Validated word-correction alternatives from published QTI; Spark UI must confirm changes.'}],
@@ -219,8 +231,8 @@
     if(questions.length===1&&questions[0]?.kind==='textCorrection'){
       if(!its.length || its.some(el=>name(el)!=='inlineChoiceInteraction'))return 0;
       const declarations=declaredResponses(xml).map;
-      const visible=(questions[0].correctionTokens||[]).map(norm);
-      const modified=(questions[0].correctionModifiedTokens||[]).map(norm);
+      const visible=(questions[0].correctionTokens||[]).map(correctionNorm);
+      const modified=(questions[0].correctionModifiedTokens||[]).map(correctionNorm);
       const matches=its.every(el=>{
         const declaration=declarations.get(attr(el,'responseIdentifier'));
         const answer=declaration?.values[0];
@@ -228,10 +240,10 @@
         const chosen=choices.find(c=>attr(c,'identifier')===answer);
         const other=choices.find(c=>attr(c,'identifier')!==answer);
         if(!chosen||!other||choices.length!==2)return false;
-        const wrongCount=visible.filter(t=>t===norm(chosen.textContent)).length;
+        const wrongCount=visible.filter(t=>t===correctionNorm(chosen.textContent)).length;
         return wrongCount===1||(wrongCount===0 &&
-          visible.filter(t=>t===norm(other.textContent)).length===1 &&
-          modified.filter(t=>t===norm(other.textContent)).length===1);
+          visible.filter(t=>t===correctionNorm(other.textContent)).length===1 &&
+          modified.filter(t=>t===correctionNorm(other.textContent)).length===1);
       });
       return matches?1:0;
     }

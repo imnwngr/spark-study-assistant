@@ -7,6 +7,8 @@
   let qtiPending = null;
   const tidy = (v) => String(v || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   const normalized = (v) => tidy(v).normalize('NFKC').toLowerCase().replace(/[’]/g, "'");
+  // Correction tokens are case-sensitive: Occupation != occupation.
+  const correctionNorm = (v) => tidy(v).normalize('NFKC').replace(/[’]/g, "'");
 
   const isTextField = el => {
     if (el.matches('textarea,[contenteditable="true"],[role="textbox"]')) return true;
@@ -261,7 +263,7 @@
     for(const answer of result.answers||[]){
       if(questions.find(q=>q.id===answer.id)?.kind==='textCorrection' &&
         Array.isArray(answer.corrections)&&answer.corrections.length){
-        lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to})=>({from,to})));
+        lastScan.trustedCorrections.set(answer.id,answer.corrections.map(({from,to,tokenIndex})=>({from,to,tokenIndex})));
       }
     }
     return result;
@@ -509,10 +511,10 @@
     const deadline=Date.now()+1800;
     while(Date.now()<deadline){
       if(!target.isConnected)return false;
-      if(normalized(target.textContent)===normalized(expected) &&
+      if(correctionNorm(target.textContent)===correctionNorm(expected) &&
         !target.classList.contains('editing')){
         await wait(100);
-        return normalized(target.textContent)===normalized(expected);
+        return correctionNorm(target.textContent)===correctionNorm(expected);
       }
       await wait(60);
     }
@@ -522,23 +524,36 @@
     const edits=response.corrections;
     if(!Array.isArray(edits)||!edits.length||edits.length>20 ||
       edits.some(e=>!e||typeof e.from!=='string'||typeof e.to!=='string'||
-        !e.from.trim()||!e.to.trim()||normalized(e.from)===normalized(e.to)))
+        !e.from.trim()||!e.to.trim()||correctionNorm(e.from)===correctionNorm(e.to)))
       return {status:'skipped',detail:'Missing validated QTI word-correction pairs.'};
     const parent=widget.closest('.ic-text-correction');
     if(!parent)return {status:'uncertain',detail:'Correction widget is missing.'};
+    const startTokens=[...widget.querySelectorAll('.input-text')];
+    const baseline=startTokens.map(t=>correctionNorm(t.textContent));
+    const expected=baseline.slice();
+    const used=new Set();
     for(const edit of edits){
       const tokens=[...widget.querySelectorAll('.input-text')];
-      const matching=tokens.filter(n=>normalized(n.textContent)===normalized(edit.from));
-      const already=tokens.some(n=>normalized(n.textContent)===normalized(edit.to) &&
-        (n.classList.contains('modified')||n.classList.contains('icTextCorrection__item--modified')));
-      if(matching.length!==1){
-        if(matching.length===0&&already)continue;
+      if(tokens.length!==baseline.length)
+        return {status:'uncertain',detail:'Spark changed the number of correction tokens.'};
+      const indexed=Number.isSafeInteger(edit.tokenIndex)?edit.tokenIndex:-1;
+      // Older mock fixtures lack indices. For published QTI the mapper always
+      // supplies the exact visible position, preventing cross-position swaps.
+      const candidates=indexed>=0?[indexed]:tokens.flatMap((node,i)=>
+        correctionNorm(node.textContent)===correctionNorm(edit.from)?[i]:[]);
+      if(candidates.length!==1||candidates[0]<0||candidates[0]>=tokens.length||used.has(candidates[0]))
         return {status:'uncertain',detail:`Cannot uniquely locate word: ${edit.from}`};
+      const index=candidates[0],target=tokens[index];
+      used.add(index);
+      const current=correctionNorm(target.textContent);
+      if(current===correctionNorm(edit.to) &&
+        (target.classList.contains('modified')||target.classList.contains('icTextCorrection__item--modified'))){
+        expected[index]=correctionNorm(edit.to);
+        continue;
       }
-      const target=matching[0];
+      if(current!==correctionNorm(edit.from))
+        return {status:'uncertain',detail:`QTI position ${index+1} changed unexpectedly.`};
       if(!visible(target))return {status:'uncertain',detail:'Correction target is not visible.'};
-      // An already-open unrelated correction popup is ambiguous: do not type
-      // into another user's work or press an unrelated submit button.
       if([...parent.querySelectorAll('.tc_popup')].some(visible))
         return {status:'uncertain',detail:'Close the open Spark correction editor and retry.'};
       target.click();
@@ -547,20 +562,23 @@
         const confirmed=await confirmCorrection(target,edit.to,popup);
         if(!confirmed)return {status:'uncertain',detail:`Spark popup did not confirm ${edit.from} → ${edit.to}.`};
       }else{
-        // Some other correction widgets expose discrete choices instead of
-        // the recorded text-entry popup. Only accept a unique real UI option.
         const choiceSelector='[role="option"],[role="menuitem"],.listbox__choice,.ui-menu-item,'+
           '.correction-option,.replace-option,[class*="correction-choice"],[class*="replacement-choice"]';
         const options=[...(parent.querySelectorAll(choiceSelector))]
-          .filter(el=>visible(el)&&!el.closest('.ki24_view')&&normalized(el.textContent)===normalized(edit.to));
+          .filter(el=>visible(el)&&!el.closest('.ki24_view')&&correctionNorm(el.textContent)===correctionNorm(edit.to));
         if(options.length!==1)return {status:'uncertain',detail:`No unique Spark replacement control for ${edit.from}.`};
         options[0].click();
         await wait(220);
       }
-      if(normalized(target.textContent)!==normalized(edit.to))
-        return {status:'uncertain',detail:`Spark did not visibly apply ${edit.to}.`};
+      expected[index]=correctionNorm(edit.to);
+      const after=[...widget.querySelectorAll('.input-text')].map(t=>correctionNorm(t.textContent));
+      if(after.length!==expected.length||after.some((value,i)=>value!==expected[i]))
+        return {status:'uncertain',detail:'Spark changed a different word while correcting this position.'};
     }
-    return {status:'filled',detail:'Spark accepted all visible word corrections; gradebook not confirmed.'};
+    const final=[...widget.querySelectorAll('.input-text')].map(t=>correctionNorm(t.textContent));
+    if(final.length!==expected.length||final.some((value,i)=>value!==expected[i]))
+      return {status:'uncertain',detail:'Full word-correction position audit failed.'};
+    return {status:'filled',detail:'All QTI correction positions verified in Spark; gradebook not confirmed.'};
   }
   async function apply(answers) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){
@@ -580,8 +598,9 @@
           const trusted=lastScan.trustedCorrections?.get(id);
           const submitted=Array.isArray(response.corrections)?response.corrections:[];
           if(!trusted||trusted.length!==submitted.length||
-            trusted.some((e,i)=>normalized(e.from)!==normalized(submitted[i].from)||
-              normalized(e.to)!==normalized(submitted[i].to)))
+            trusted.some((e,i)=>correctionNorm(e.from)!==correctionNorm(submitted[i].from)||
+              correctionNorm(e.to)!==correctionNorm(submitted[i].to)||
+              e.tokenIndex!==submitted[i].tokenIndex))
             outcome={status:'skipped',detail:'Correction pairs were not verified against this screen’s QTI.'};
           else outcome=await setTextCorrections(found.node,response);
         }
