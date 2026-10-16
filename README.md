@@ -246,3 +246,7 @@ When a previous build left `Current Date: Student` instead of `Current occupatio
 ### v0.7.13: Word-correction capitalization safeguard
 
 In **Review | Writing skill | 1e**, the incorrect label `Occupation` (in “Occupation of birth”) and the valid lowercase `occupation` (in “Current occupation”) must never be treated as the same token. This version maps each QTI correction to one visible word position and verifies the complete set of word positions after editing. Repeated **Solve** is regression-tested. If an older version produced “Current Date: Student”, restore the word to `qualifications` or `occupation` manually (or clear the exercise) before using this version. Spark grading is not guaranteed by local DOM checks.
+
+### Universal Exercise Inspector (v0.7.15)
+
+Open Inspector from the popup. Choose **Capture screen** to collect the current exercise, or **Start recording** → interact with Spark manually → **Stop recording** → **Export JSON**. The recorder now watches all exercise `.interaction` types and includes automatic before/after snapshots, even for radio, dropdown, pronunciation and dragging exercises. If Spark shows multiple screens, record or capture each separately. Review the JSON before sharing: it includes exercise text and values typed into exercise inputs. Recording an interaction is **not proof that a Solve adapter exists or the answer was scored correct**.

@@ -1,4 +1,4 @@
-/* Spark Exercise Inspector: opt-in, read-only DOM captures and correction interaction trace. */
+/* Spark Exercise Inspector: opt-in, read-only captures and universal exercise interaction trace. */
 (() => {
   'use strict';
   if (globalThis.__sparkInspectorListenerInstalled) return;
@@ -22,7 +22,7 @@
     // Avoid credentials and URL-bearing markup. Captures may still include exercise text.
     html: /^(script|iframe|form|input|textarea)$/i.test(el.tagName) ? null : clean(el.outerHTML, 1400)
   });
-  const selectors = ['.interaction', '[class*="interaction"]', '.os-sequence', '.os-match', '.os-choice', '.os-gap', '.os-text', '.is-dropdown', '.ic-text-correction', 'input', 'textarea', 'select', '[contenteditable="true"]', '[role="radio"]', '[role="checkbox"]', '[draggable="true"]'];
+  const selectors = ['.interaction', '[class*="interaction"]', '.os-sequence', '.os-match', '.os-choice', '.os-gap', '.os-text', '.is-dropdown', '.ic-text-correction', '[class*="is-"]', '[class*="ic-"]', '[class*="os-"]', '[role="listbox"]', '[role="option"]', '[role="combobox"]', 'audio', 'input', 'textarea', 'select', '[contenteditable="true"]', '[role="radio"]', '[role="checkbox"]', '[draggable="true"]'];
   function capture() {
     const counts = Object.fromEntries(selectors.map(selector => [selector, document.querySelectorAll(selector).length]));
     const interactions = [...document.querySelectorAll('.interaction')].slice(0, 45).map((el, index) => ({
@@ -38,22 +38,23 @@
       title: clean(document.title), url: safeUrl(), counts, interactions, controls, qtiNodes,
       summary: {
         types: [...new Set(interactions.map(item => item.classes.split(' ').find(token => /^(is-|ic-|os-|pp-)/.test(token))).filter(Boolean))],
-        interactionCount: counts['.interaction']
+        interactionCount: counts['.interaction'],
+        visibleInputTypes: [...new Set([...document.querySelectorAll('.interaction input')].map(input => input.type || 'text'))].slice(0,12)
       }
     };
   }
 
-  const MAX_EVENTS = 180;
-  const MAX_BYTES = 420000;
+  const MAX_EVENTS = 360;
+  const MAX_BYTES = 650000;
   const TRACE_MS = 180000;
-  const watchEvents = ['pointerdown', 'pointerup', 'click', 'focusin', 'focusout', 'beforeinput', 'input', 'change', 'keydown', 'keyup', 'submit'];
-  const trace = {active: false, records: [], byteCount: 0, truncated: false, startedAt: null, endedAt: null, armedUntil: 0, lastMutation: 0, lastState: '', observer: null, timer: null};
+  const watchEvents = ['pointerdown', 'pointerup', 'click', 'dblclick', 'focusin', 'focusout', 'beforeinput', 'input', 'change', 'keydown', 'keyup', 'submit', 'dragstart', 'dragend', 'drop', 'mousedown', 'mouseup', 'mousemove', 'play', 'pause', 'ended'];
+  const trace = {active: false, records: [], byteCount: 0, truncated: false, startedAt: null, endedAt: null, armedUntil: 0, lastMutation: 0, lastState: '', lastMouseMove: 0, observer: null, timer: null};
 
   const relevantEditor = el => {
     if (!el || el.nodeType !== 1) return false;
     try {
-      if (el.closest('.ic-text-correction')) return true;
-      return !!el.closest('[class*="icTextCorrection"], [class*="ki24"], [role="dialog"], [role="listbox"], [role="option"], .ui-dialog, .popover, .popper, .popup, .tooltip, [class*="replacement"], [class*="correction-menu"]');
+      if (el.closest('.interaction')) return true;
+      return !!el.closest('[class*="icTextCorrection"], [class*="ki24"], [role="dialog"], [role="listbox"], [role="option"], [role="menu"], [role="menuitem"], .ui-dialog, .popover, .popper, .popup, .tooltip, [class*="replacement"], [class*="correction-menu"]');
     } catch {return false;}
   };
   const shortNode = el => {
@@ -91,6 +92,30 @@
       .slice(0, 28).map(shortNode);
     return {widgets, editorNodes};
   }
+  // Record a small, typed view of all exercise formats. The full 51+ token
+  // correction snapshot is kept only for initial/final events; otherwise a
+  // normal typing sequence would exhaust the trace byte/event budget.
+  function compactState() {
+    const widgets = [...document.querySelectorAll('.interaction')].slice(0, 9).map((root,index) => {
+      const candidates = [...root.querySelectorAll(
+        'input:not([type="password"]):not([type="hidden"]):not([type="file"]), textarea, select, [contenteditable="true"], [role="radio"], [role="checkbox"], [role="option"], [role="combobox"], [aria-checked], [aria-selected], .editing, .modified, [class*="selected"], [class*="active"]')];
+      const interesting = candidates.filter(el => !el.closest('.tc_popup') &&
+        (isVisible(el) || el.matches('.editing,.modified,[aria-checked],[aria-selected]'))).slice(0, 24);
+      return {index, classes:clean(classes(root),160), text:clean(root.textContent,180),
+        controls:interesting.map(shortNode)};
+    });
+    const activeEditor = [...document.querySelectorAll(editorSelector)]
+      .filter(el => isVisible(el) && (relevantEditor(el) ||
+        (Date.now() < trace.armedUntil && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)))).slice(0, 12).map(shortNode);
+    const corrections = [...document.querySelectorAll('.ic-text-correction .modified, .ic-text-correction .editing')]
+      .slice(0, 18).map(shortNode);
+    return {widgets,activeEditor,corrections};
+  }
+  function fullState() {
+    const state=compactState();
+    if (document.querySelector('.ic-text-correction')) state.correctionDetail=correctionState();
+    return state;
+  }
   function record(type, data = {}, withState = false) {
     if (!trace.active || trace.records.length >= MAX_EVENTS || trace.byteCount > MAX_BYTES) {
       if (trace.active) trace.truncated = true;
@@ -98,7 +123,7 @@
     }
     const entry = {ms: Date.now() - trace.startedAt, type, ...data};
     if (withState) {
-      const state = correctionState();
+      const state = type === 'initial' || type === 'final' ? fullState() : compactState();
       const fingerprint = JSON.stringify(state);
       // Keep changed snapshots plus the first sample, but avoid repeated huge states.
       if (trace.lastState !== fingerprint || type === 'initial' || type === 'final') {
@@ -113,6 +138,11 @@
   }
   function onEvent(event) {
     if (!trace.active) return;
+    if (event.type === 'mousemove') {
+      const now = Date.now();
+      if (now - trace.lastMouseMove < 180) return;
+      trace.lastMouseMove = now;
+    }
     const el = event.target;
     const inside = relevantEditor(el);
     const editorInput = Date.now() < trace.armedUntil &&
@@ -120,20 +150,22 @@
     if (!inside && !editorInput) return;
     if (inside) trace.armedUntil = Date.now() + 20000;
     const data = {target: shortNode(el)};
+    if (['mousedown','mouseup','mousemove','dragstart','dragend','drop'].includes(event.type) && 'clientX' in event) {
+      data.pointer = {x:Math.round(event.clientX),y:Math.round(event.clientY)};
+    }
     if (/^key/.test(event.type)) {
       // Do not record literal character keystrokes; input values are captured in the scoped editor state.
       data.key = ['Enter', 'Escape', 'Tab', 'Backspace', 'Delete'].includes(event.key) ? event.key : 'other';
     }
     if (event.type === 'beforeinput' || event.type === 'input') data.inputType = clean(event.inputType, 50);
     record(event.type, data, ['click', 'input', 'change', 'focusin', 'focusout', 'pointerup'].includes(event.type));
-    if (['click', 'pointerup', 'input', 'change'].includes(event.type)) {
-      setTimeout(() => record('settled', {after: event.type}, true), 80);
-      setTimeout(() => record('settled', {after: event.type}, true), 350);
+    if (['click', 'input', 'change', 'drop', 'dragend'].includes(event.type)) {
+      setTimeout(() => record('settled', {after: event.type}, true), 180);
     }
   }
   function onMutations(mutations) {
     if (!trace.active) return;
-    const overlaySelector = 'input, textarea, [contenteditable="true"], [role="option"], [role="menuitem"], .popup, .popper, .popover, [class*="replacement"], [class*="correction"]';
+    const overlaySelector = 'input, textarea, [contenteditable="true"], [role="option"], [role="menuitem"], .popup, .popper, .popover, .interaction, [class*="replacement"], [class*="correction"]';
     const associated = mutations.filter(m => relevantEditor(m.target) ||
       (Date.now() < trace.armedUntil && [...m.addedNodes, ...m.removedNodes].some(n =>
         relevantEditor(n) || (n?.nodeType === 1 &&
@@ -157,7 +189,7 @@
     if (trace.active) return {ok: true, active: true, alreadyActive: true};
     trace.active = true; trace.records = []; trace.byteCount = 0;
     trace.truncated = false; trace.startedAt = Date.now(); trace.endedAt = null;
-    trace.armedUntil = 0; trace.lastMutation = 0; trace.lastState = '';
+    trace.armedUntil = 0; trace.lastMutation = 0; trace.lastMouseMove = 0; trace.lastState = '';
     for (const type of watchEvents) document.addEventListener(type, onEvent, true);
     trace.observer = new MutationObserver(onMutations);
     trace.observer.observe(document.documentElement, {subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','value','aria-expanded','aria-selected','aria-hidden','style']});
@@ -185,7 +217,7 @@
     if (!message?.type?.startsWith('SPARK_INSPECT_')) return false;
     try {
       switch (message.type) {
-        case 'SPARK_INSPECT_PROBE': respond({ok:true,result:{instanceId,title:clean(document.title),url:safeUrl(),readyState:document.readyState,correctionWidgets:document.querySelectorAll('.interaction.ic-text-correction').length,interactionCount:document.querySelectorAll('.interaction').length}}); break;
+        case 'SPARK_INSPECT_PROBE': respond({ok:true,result:{instanceId,title:clean(document.title),url:safeUrl(),readyState:document.readyState,correctionWidgets:document.querySelectorAll('.interaction.ic-text-correction').length,interactionCount:document.querySelectorAll('.interaction').length,interactionTypes:[...new Set([...document.querySelectorAll('.interaction')].map(el=>[...el.classList].find(cls=>/^(?:is-|ic-|os-|pp-)/.test(cls))||'unknown'))].slice(0,16)}}); break;
         case 'SPARK_INSPECT_CAPTURE': respond({ok:true, result:capture()}); break;
         case 'SPARK_INSPECT_TRACE_START': respond(startTrace()); break;
         case 'SPARK_INSPECT_TRACE_STOP': respond(stopTrace()); break;

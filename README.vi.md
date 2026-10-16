@@ -239,3 +239,7 @@ Nếu bản cũ để lại `Current Date: Student`, v0.7.13 có thể không t�
 ### v0.7.13: Sửa nhầm từ do chữ hoa/chữ thường
 
 Trong bài **Review | Writing skill | 1e**, từ sai `Occupation` ở dòng ngày sinh phải phân biệt với từ đúng `occupation` ở dòng nghề nghiệp. Bản này gắn cặp đáp án QTI với **vị trí từ cụ thể**, kiểm tra toàn bộ từ sau mỗi lần sửa và thử hồi quy khi bấm **Solve** nhiều lần. Nếu bản cũ đã đổi dòng cuối thành “Current Date: Student”, cần khôi phục thủ công từ `qualifications` hoặc `occupation` (hoặc xóa đáp án bài tập) trước khi thử bản mới. Kiểm tra DOM không thay thế kết quả chấm của Spark.
+
+### Exercise Inspector tổng quát (v0.7.15)
+
+Mở Inspector từ popup. Dùng **Capture screen** để chụp cấu trúc bài, hoặc **Start recording** → thao tác thủ công trên Spark → **Stop recording** → **Export JSON**. Trình ghi hiện theo dõi mọi loại `.interaction` và tự lưu cấu trúc trước/sau, kể cả radio, dropdown, Pronunciation và kéo-thả. Với bài có nhiều screen, chụp hoặc ghi từng screen riêng. Hãy kiểm tra JSON trước khi chia sẻ: dữ liệu có nội dung bài và giá trị đã nhập. Ghi được sự kiện **không đồng nghĩa** chức năng Solve đã hỗ trợ hoặc Spark đã chấm đúng.

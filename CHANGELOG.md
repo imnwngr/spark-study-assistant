@@ -1,3 +1,12 @@
+## v0.7.15 — Universal Inspector for unsupported exercises (2026-10-16)
+
+- Analyze three user-supplied JSON exports: `1d | Real life | 1` and `2b | Pronunciation | 1` contain iframe information but **no exercise captures or interaction events**, because the previous recorder only attached to `ic-text-correction`; `2e | Writing skill | 2` is a longer `ic-text-correction` exercise with a truncated trace.
+- Generalize Inspector's frame discovery and recorder to **all `.interaction` types**, including radio, select, text inputs, matching and drag-and-drop. Recognize their types in frame coverage; capture DOM before and after a manual trace automatically.
+- Reduce redundant intermediate state snapshots and increase the bounded trace budget to **360 events / 650 KB**, while keeping three-minute auto-stop and excluding password/file values and literal typed keys.
+- Clarify trace verification: it confirms captured UI interactions, **not** correct grading or a working Solve adapter.
+- Add tests for delayed iframe discovery, non-correction frame attachment, and a Chromium exercise fixture with radio, dropdown, text, and correction controls. All existing Solve adapters remain unchanged.
+- No new Solve adapter is claimed for Real life or Pronunciation without a usable UI/QTI capture. The Writing skill | 2 sample is the **existing word-correction family**; its published QTI responses and grading behavior still need verification.
+
 ## v0.7.14 — Recover previously miscorrected QTI words (2026-10-16)
 
 - Fix v0.7.13 regression: a correction previously changed to an unexpected value (for example `Current Date: Student` left by v0.7.12) caused the entire correction screen to fail QTI mapping and **Solve** to do nothing.

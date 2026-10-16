@@ -6,7 +6,8 @@ const coverageHistory = [];
 let tabId = null, busy = false, recording = false;
 let recordedFrames = new Map();
 let pollTimer = null, sessionTimeout = null, pollBusy = false, recordingStartedAt = null, recordingMode = 'idle';
-let lastInventory = [], lastCoverageError = null;
+let lastInventory = [], lastCoverageError = null, traceBefore = [];
+const TRACE_VERSION = '3.4.0';
 const status = message => { $('status').textContent = message; };
 const validSparkUrl = url => /^https:\/\/learn\.eltngl\.com\//.test(url || '');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -28,7 +29,7 @@ async function connect() {
       $('source').textContent = `Spark tab #${tabId} · ${clean(tab.title, 55)}`;
     } catch { $('source').textContent = `Spark tab #${tabId}`; }
   } else $('source').textContent = 'No Spark tab found';
-  status(tabId ? 'Ready. Open the correction exercise in Spark before starting the recorder.' : 'Open a Spark exercise, then reopen Inspector.');
+  status(tabId ? 'Ready. Open an exercise in Spark before starting the recorder.' : 'Open a Spark exercise, then reopen Inspector.');
 }
 async function getFrames() {
   if (!tabId) await connect();
@@ -54,6 +55,8 @@ function inspectLiveFrame() {
     readyState:document.readyState,
     correctionWidgets:document.querySelectorAll('.interaction.ic-text-correction').length,
     interactionCount:document.querySelectorAll('.interaction').length,
+    interactionTypes:[...new Set([...document.querySelectorAll('.interaction')].map(el =>
+      [...el.classList].find(cls => /^(?:is-|ic-|os-|pp-)/.test(cls)) || 'unknown'))].slice(0,16),
     visibleEditors:[...document.querySelectorAll('input,textarea,[contenteditable="true"]')].filter(el => !!el.getClientRects().length).length};
 }
 async function getInventory() {
@@ -79,7 +82,8 @@ async function getInventory() {
   lastInventory = result;
   lastCoverageError = injectionError;
   const widgets = result.reduce((sum,f) => sum+(f.correctionWidgets || 0),0);
-  $('coverage').textContent = `${result.length} iframe(s) detected · ${result.filter(f=>f.accessible).length} accessible · ${widgets} correction widget(s)`;
+  const interactions = result.reduce((sum,f) => sum+(f.interactionCount || 0),0);
+  $('coverage').textContent = `${result.length} iframe(s) · ${result.filter(f=>f.accessible).length} accessible · ${interactions} interaction(s) · ${widgets} correction widget(s)`;
   $('framePreview').textContent = JSON.stringify({tabId,frames:result,probeError:injectionError},null,2);
   return result;
 }
@@ -90,7 +94,7 @@ function updateButtons() {
   $('export').disabled = busy;
   $('clear').disabled = busy;
   $('recordState').textContent = recording ?
-    (recordingMode === 'active' ? `Recording in ${recordedFrames.size} correction iframe(s)` : 'Waiting for correction iframe…') : 'Not recording';
+    (recordingMode === 'active' ? `Recording in ${[...recordedFrames.values()].filter(f=>!f.lostOnReload).length} exercise iframe(s)` : 'Waiting for exercise iframe…') : 'Not recording';
   $('recordCount').textContent = String(recordings.length);
 }
 async function withBusy(task) {
@@ -103,6 +107,7 @@ function addCoverageRecord(event, inventory) {
   const record = {at:new Date().toISOString(),event,frameCount:inventory.length,
     accessibleCount:inventory.filter(f=>f.accessible).length,
     correctionFrames:inventory.filter(f=>f.correctionWidgets>0).map(f=>({frameId:f.frameId,title:f.title,url:f.url,correctionWidgets:f.correctionWidgets})),
+    exerciseFrames:inventory.filter(f=>f.interactionCount>0).map(f=>({frameId:f.frameId,title:f.title,url:f.url,interactionCount:f.interactionCount,interactionTypes:f.interactionTypes||[]})),
     errors:lastCoverageError};
   // Preserve transitions only, not a repetitive polling log.
   const previous = coverageHistory[coverageHistory.length-1];
@@ -111,15 +116,18 @@ function addCoverageRecord(event, inventory) {
     coverageHistory.push(record);
   }
 }
+async function snapshotFrames(inventory) {
+  return Promise.all(inventory.map(async frame => {
+    const response=await sendFrame(frame.frameId,'SPARK_INSPECT_CAPTURE');
+    return {frameId:frame.frameId,parentFrameId:frame.parentFrameId ?? -1,
+      ...(response?.ok ? response.result : {error:response?.error || 'No response'})};
+  }));
+}
 async function capture() {
   await withBusy(async () => {
     const inventory = await getInventory();
     addCoverageRecord('capture',inventory);
-    const inspected = await Promise.all(inventory.map(async frame => {
-      const response = await sendFrame(frame.frameId,'SPARK_INSPECT_CAPTURE');
-      return {frameId:frame.frameId,parentFrameId:frame.parentFrameId ?? -1,
-        ...(response?.ok ? response.result : {error:response?.error || 'No response'})};
-    }));
+    const inspected = await snapshotFrames(inventory);
     const captureData = {label:`screen-${captures.length + 1}`,timestamp:new Date().toISOString(),frames:inspected};
     captures.push(captureData);
     $('count').textContent = String(captures.length);
@@ -137,8 +145,8 @@ async function pollFrameCoverage() {
   try {
     const inventory = await getInventory();
     addCoverageRecord('poll',inventory);
-    const correctionFrames = inventory.filter(f=>f.correctionWidgets>0 && f.accessible);
-    for (const frame of correctionFrames) {
+    const exerciseFrames = inventory.filter(f=>f.interactionCount>0 && f.accessible);
+    for (const frame of exerciseFrames) {
       const probe = await sendFrame(frame.frameId,'SPARK_INSPECT_PROBE');
       if (!probe?.ok) continue;
       const instance = probe.result.instanceId;
@@ -158,16 +166,16 @@ async function pollFrameCoverage() {
       }
       recordedFrames.set(frame.frameId,{
         frameId:frame.frameId,parentFrameId:frame.parentFrameId ?? -1,instanceId:instance,
-        title:frame.title,url:frame.url,attachedAt:new Date().toISOString()
+        title:frame.title,url:frame.url,interactionTypes:frame.interactionTypes||[],attachedAt:new Date().toISOString()
       });
     }
     const attached = [...recordedFrames.values()].filter(f=>!f.lostOnReload);
     if (attached.length) {
       recordingMode='active';
-      status(`Recording in ${attached.length} correction frame(s). Now click one wrong word, type the correction, press OK, then Stop recording.`);
+      status(`Recording in ${attached.length} exercise frame(s). Perform one normal answer interaction, then Stop recording.`);
     } else {
       recordingMode='waiting';
-      status('Waiting: the selected Spark tab has no accessible ic-text-correction widget. Open that exercise and wait until coverage shows 1+ widget before editing.');
+      status('Waiting: no accessible exercise interaction detected. Open the desired exercise and wait until coverage shows 1+ interaction before editing.');
     }
     updateButtons();
   } catch (error) {status(`Recorder coverage error: ${error.message}`);}
@@ -181,6 +189,7 @@ async function startRecording() {
     recordingMode='waiting';
     recording=true;
     await pollFrameCoverage();
+    traceBefore = await snapshotFrames(lastInventory);
     pollTimer=setInterval(() => {void pollFrameCoverage();},850);
     sessionTimeout=setTimeout(() => {if(recording) void stopRecording();},180000);
     updateButtons();
@@ -205,25 +214,28 @@ async function finishRecording() {
   }));
   const meaningful=fetched.filter(f=>{
     const events=f.events || [];
-    // A click alone is not proof that the temporary editor received the replacement.
-    return events.some(e=>['input','beforeinput','change'].includes(e.type)) &&
-      events.some(e=>['dom-mutation','settled','click','keydown','keyup'].includes(e.type));
+    // General trace means the user interacted, not that an answer was graded correct.
+    return events.some(e=>['click','input','change','drop','dragend','pointerup','keydown','submit'].includes(e.type));
   });
+  let traceAfter=[];
+  try {traceAfter = await snapshotFrames(await getInventory());} catch {}
   const total=meaningful.reduce((sum,f)=>sum+(f.eventCount||0),0);
   const saved={label:`interaction-${recordings.length+1}`,timestamp:new Date().toISOString(),startedAt:recordingStartedAt,
-    verified:meaningful.length>0,warning:meaningful.length ? null : 'No complete correction input sequence was recorded. The JSON may contain only frame initialization or clicks. Check frame coverage and record click → type → OK.',
-    frames:fetched,coverage:coverageHistory.slice()};
+    verified:meaningful.length>0,
+    verificationScope:'interaction-events-observed-only; not answer correctness',
+    warning:meaningful.length ? null : 'No exercise interaction events were recorded. Inspect the before/after snapshots and frame coverage; retry with the exercise visible.',
+    frames:fetched,coverage:coverageHistory.slice(),screens:{before:traceBefore,after:traceAfter}};
   recordings.push(saved);
-  recordedFrames=new Map();recordingMode='idle';
-  if (meaningful.length) status(`Saved ${total} events from ${meaningful.length} correction frame(s). Export JSON.`);
-  else status('No complete correction input sequence was recorded. Check iframe coverage and try click → type → OK; the JSON includes diagnostics.');
+  recordedFrames=new Map();traceBefore=[];recordingMode='idle';
+  if (meaningful.length) status(`Saved ${total} events from ${meaningful.length} exercise frame(s), plus before/after screen snapshots. Export JSON.`);
+  else status('No exercise interaction recorded. Before/after screen snapshots were saved; check frame diagnostics and retry.');
 }
 async function stopRecording() {await withBusy(finishRecording);}
 async function exportJSON() {
   await withBusy(async () => {
     if (recording) await finishRecording();
     if (!captures.length && !recordings.length) {status('Capture a screen or record an interaction before exporting.');return;}
-    const data={tool:'Spark Exercise Inspector',version:'3.3.0',exportedAt:new Date().toISOString(),
+    const data={tool:'Spark Exercise Inspector',version:TRACE_VERSION,exportedAt:new Date().toISOString(),
       sourceTabId:tabId,framesLastSeen:lastInventory,frameProbeError:lastCoverageError,coverage:coverageHistory,captures,recordings};
     const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
     const a=document.createElement('a');a.href=url;a.download=`spark-exercise-inspections-${Date.now()}.json`;
@@ -237,7 +249,7 @@ async function clearAll() {
     let frameIds=[];
     try {frameIds=(await getFrames()).map(f=>f.frameId);} catch {}
     await Promise.all([...new Set(frameIds)].map(id=>sendFrame(id,'SPARK_INSPECT_TRACE_CLEAR',false)));
-    captures.length=0;recordings.length=0;coverageHistory.length=0;recordedFrames=new Map();
+    captures.length=0;recordings.length=0;coverageHistory.length=0;recordedFrames=new Map();traceBefore=[];
     $('captures').replaceChildren();$('count').textContent='0';$('preview').textContent='No captures yet.';
     status('Captures and interaction recordings cleared.');
   });
