@@ -1,0 +1,83 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const script = fs.readFileSync(path.join(__dirname,'../inspector.js'),'utf8');
+
+async function harness() {
+  const dom = new Map();
+  const handlers = {};
+  let poll = null;
+  let downloaded = null;
+  const state = {exerciseLoaded:false,started:0,stopped:0};
+  const node = id => {
+    if(!dom.has(id)) dom.set(id,{textContent:'',disabled:false,children:[],
+      addEventListener(type,fn){handlers[id+':'+type]=fn;},
+      append(child){this.children.push(child);},replaceChildren(){this.children=[];},
+      remove(){},click(){},set href(x){this._href=x;},set download(x){this._download=x;}});
+    return dom.get(id);
+  };
+  const chrome = {
+    tabs: {
+      async get(){return {id:99,url:'https://learn.eltngl.com/dashboard/assignments/example',title:'NGL Spark'};},
+      async query(){return [];},
+      async sendMessage(_tab,{type},{frameId}){
+        if (type==='SPARK_INSPECT_PROBE' && frameId===1941) return {ok:true,result:{instanceId:'editor-1',correctionWidgets:1}};
+        if (type==='SPARK_INSPECT_TRACE_START' && frameId===1941) {state.started++;return {ok:true};}
+        if (type==='SPARK_INSPECT_TRACE_STOP' && frameId===1941) {state.stopped++;return {ok:true};}
+        if (type==='SPARK_INSPECT_TRACE_GET' && frameId===1941) return {ok:true,result:{eventCount:5,events:[{type:'initial'},{type:'click'},{type:'input'},{type:'dom-mutation'},{type:'final'}]}};
+        return {ok:false,error:'unavailable'};
+      }
+    },
+    webNavigation:{async getAllFrames(){const frames=[{frameId:0,parentFrameId:-1},{frameId:1940,parentFrameId:0}];if(state.exerciseLoaded)frames.push({frameId:1941,parentFrameId:1940});return frames;}},
+    scripting:{async executeScript({target}){
+      if(target.allFrames){const f=[{frameId:0,result:{title:'NGL',correctionWidgets:0}},{frameId:1940,result:{title:'nullblank',correctionWidgets:0}}];
+        if(state.exerciseLoaded) f.push({frameId:1941,result:{title:'Writing skill | 1e',correctionWidgets:1,interactionCount:2,readyState:'complete'}});
+        return f;
+      }
+      return [];
+    }}
+  };
+  const context={chrome,location:{search:'?tabId=99'},URLSearchParams,URL:{createObjectURL(blob){downloaded=blob;return 'blob:test';},revokeObjectURL(){}},Blob,
+    setTimeout(){return 1;},clearTimeout(){},setInterval(fn){poll=fn;return 123;},clearInterval(){poll=null;},
+    document:{getElementById:node,createElement(tag){return node('dynamic-'+tag+'-'+dom.size);},body:{append(){}}},console};
+  vm.runInNewContext(script,context,{timeout:5000});
+  await new Promise(resolve=>setImmediate(resolve));
+  return {node,handlers,state,getPoll:()=>poll,download:async()=>downloaded?JSON.parse(await downloaded.text()):null};
+}
+
+test('empty Dashboard/nullblank recording is clearly marked unverified, not success',async()=>{
+  const h=await harness();
+  await h.handlers['startTrace:click']();
+  assert.match(h.node('recordState').textContent,/Waiting/);
+  assert.match(h.node('coverage').textContent,/0 correction widget/);
+  assert.equal(h.state.started,0);
+  await h.handlers['stopTrace:click']();
+  assert.match(h.node('status').textContent,/No complete correction input/);
+  await h.handlers['export:click']();
+  const data=await h.download();
+  assert.equal(data.version,'3.3.0');
+  assert.equal(data.recordings.length,1);
+  assert.equal(data.recordings[0].verified,false);
+  assert.match(data.recordings[0].warning,/No complete correction input/);
+  assert.ok(data.coverage.length);
+});
+
+test('delayed exercise frame becomes attached automatically and produces verified trace',async()=>{
+  const h=await harness();
+  await h.handlers['startTrace:click']();
+  h.state.exerciseLoaded=true;
+  await h.getPoll()();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(h.state.started,1);
+  assert.match(h.node('recordState').textContent,/Recording in 1 correction iframe/);
+  await h.handlers['stopTrace:click']();
+  assert.equal(h.state.stopped,1);
+  await h.handlers['export:click']();
+  const data=await h.download();
+  assert.equal(data.recordings[0].verified,true);
+  assert.equal(data.recordings[0].frames[0].eventCount,5);
+  assert.ok(data.coverage.some(s=>s.correctionFrames.length===1));
+});

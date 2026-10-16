@@ -220,6 +220,10 @@ Bộ **109 bài kiểm thử Node** kiểm tra mapping QTI, radio, checkbox, ph�
 
 Mở popup extension, chọn nút Inspector. Tại tab mới, bấm **Capture screen** cho từng màn hình của bài Spark, rồi **Export JSON**. Công cụ chỉ đọc dữ liệu và không tự tải báo cáo lên mạng; hãy kiểm tra nội dung bài và câu trả lời trong JSON trước khi chia sẻ.
 
+### v0.7.11: Ghi tương tác và nhận diện iframe tin cậy
+
+Inspector hiển thị số iframe truy cập được, tự chờ và gắn bộ ghi khi tìm thấy widget `ic-text-correction`, theo dõi iframe xuất hiện trễ và báo rõ khi bản ghi không có thao tác sửa từ. JSON xuất ra chứa chẩn đoán iframe để điều tra lỗi. Chức năng Solve không thay đổi.
+
 ### v0.7.10: Inspector ghi lại thao tác sửa từ
 
 Mở Exercise Inspector từ popup → **Start recording** → quay lại Spark, **chọn từ sai, nhập từ sửa và xác nhận thủ công** → trở về Inspector → **Stop recording** → **Export JSON**. Có thể Capture screen trước/sau. Recorder chỉ đọc sự kiện, theo dõi ô nhập/menu xuất hiện tạm thời; không tự sửa, không nộp hoặc chuyển screen. Tự dừng sau ba phút, giới hạn dung lượng, không lấy mật khẩu. Hãy kiểm tra dữ liệu JSON trước khi chia sẻ. Adapter tự sửa từ vẫn **chưa được xác minh trên Spark thật**.

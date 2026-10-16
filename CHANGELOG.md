@@ -1,3 +1,10 @@
+## v0.7.11 — Inspector iframe discovery and recording verification
+
+- Fix Inspector's false-positive recordings: v0.7.10 could start successfully on the Dashboard or `nullblank` frame even with zero `ic-text-correction` widgets, generating only `initial`/`final` events.
+- Cross-check `webNavigation.getAllFrames` with live read-only `chrome.scripting.executeScript({allFrames:true})` probes. Show accessible-frame counts and real correction-widget coverage.
+- Automatically attach the recorder when a correction iframe appears after Start and detect iframe reloads. Do not treat an empty recording as a successful interaction trace.
+- Export frame-discovery diagnostics and explicit `verified`/`warning` metadata alongside recordings for troubleshooting. Preserve all existing Solve functions and corrected Git author identity.
+
 ## v0.7.10 — Correction Interaction Trace Inspector
 
 - Upgraded the integrated Exercise Inspector to **v3.2.0** with opt-in **Start recording → manual edit → Stop recording → Export JSON** interaction tracing. Capture screen and trace recording coexist.

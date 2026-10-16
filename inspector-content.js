@@ -4,6 +4,7 @@
   if (globalThis.__sparkInspectorListenerInstalled) return;
   globalThis.__sparkInspectorListenerInstalled = true;
 
+  const instanceId = String(Date.now()) + ':' + Math.random().toString(36).slice(2);
   const clean = (value, max = 260) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
   const attr = (el, name) => el?.getAttribute?.(name) ?? null;
   const safeUrl = () => { try { return location.origin + location.pathname; } catch { return null; } };
@@ -184,6 +185,7 @@
     if (!message?.type?.startsWith('SPARK_INSPECT_')) return false;
     try {
       switch (message.type) {
+        case 'SPARK_INSPECT_PROBE': respond({ok:true,result:{instanceId,title:clean(document.title),url:safeUrl(),readyState:document.readyState,correctionWidgets:document.querySelectorAll('.interaction.ic-text-correction').length,interactionCount:document.querySelectorAll('.interaction').length}}); break;
         case 'SPARK_INSPECT_CAPTURE': respond({ok:true, result:capture()}); break;
         case 'SPARK_INSPECT_TRACE_START': respond(startTrace()); break;
         case 'SPARK_INSPECT_TRACE_STOP': respond(stopTrace()); break;

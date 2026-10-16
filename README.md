@@ -227,6 +227,10 @@ The extension now selects a unique actionable Spark **Submit to Gradebook** butt
 
 Open the extension popup and select the Inspector toolbar button. In the Inspector tab, capture each Spark screen separately, then export JSON. The inspector is read-only and never uploads data itself. Review exported answers and exercise text before sharing.
 
+### v0.7.11: Reliable iframe recording coverage
+
+The Inspector now reports live iframe coverage, waits for an accessible `ic-text-correction` widget before attaching the interaction recorder, monitors newly loaded frames, and flags recordings with no correction events as unverified. The JSON includes frame diagnostics to help debug missing exercise frames. No Solver functionality is changed.
+
 ### v0.7.10: Interaction Trace Inspector
 
 Open Exercise Inspector from the popup. Select **Start recording**, switch to the Spark correction exercise, **manually select an incorrect word, enter its replacement and confirm**, then return to Inspector, choose **Stop recording** and **Export JSON**. Capture screens before/after as desired. Recording observes correction events and transient editors without changing answers, submitting or navigating. It automatically stops after three minutes, limits log sizes, and excludes password fields. Review exported entered text before sharing. The word-correction Solve adapter is **not yet confirmed** by live Spark evidence.
