@@ -61,6 +61,7 @@
       interactions.some(el=>name(el)!=='inlineChoiceInteraction'))return fail('correctionInteractionType');
     const {map:declared}=declaredResponses(xml);
     const tokens=(q.correctionTokens||[]).map(norm);
+    const modified=(q.correctionModifiedTokens||[]).map(norm);
     if(!tokens.length)return fail('missingVisibleCorrectionTokens');
     const edits=[];
     for(const el of interactions){
@@ -74,7 +75,11 @@
       const replacement=options.find(o=>o.id!==declaration.values[0]);
       if(!incorrect||!replacement||norm(incorrect.label)===norm(replacement.label))
         return fail('correctionPairAmbiguous');
-      if(tokens.filter(t=>t===norm(incorrect.label)).length!==1)return fail('correctionTargetNotUnique');
+      const incorrectCount=tokens.filter(t=>t===norm(incorrect.label)).length;
+      const replacementCount=tokens.filter(t=>t===norm(replacement.label)).length;
+      if(incorrectCount!==1 && !(incorrectCount===0 && replacementCount===1 &&
+        modified.filter(t=>t===norm(replacement.label)).length===1))
+        return fail('correctionTargetNotUnique');
       edits.push({from:incorrect.label,to:replacement.label,responseId});
     }
     if(new Set(edits.map(e=>norm(e.from))).size!==edits.length)return fail('duplicateCorrectionTargets');
@@ -215,11 +220,18 @@
       if(!its.length || its.some(el=>name(el)!=='inlineChoiceInteraction'))return 0;
       const declarations=declaredResponses(xml).map;
       const visible=(questions[0].correctionTokens||[]).map(norm);
+      const modified=(questions[0].correctionModifiedTokens||[]).map(norm);
       const matches=its.every(el=>{
         const declaration=declarations.get(attr(el,'responseIdentifier'));
         const answer=declaration?.values[0];
-        const chosen=children(el,'inlineChoice').find(c=>attr(c,'identifier')===answer);
-        return chosen&&visible.filter(t=>t===norm(chosen.textContent)).length===1;
+        const choices=children(el,'inlineChoice');
+        const chosen=choices.find(c=>attr(c,'identifier')===answer);
+        const other=choices.find(c=>attr(c,'identifier')!==answer);
+        if(!chosen||!other||choices.length!==2)return false;
+        const wrongCount=visible.filter(t=>t===norm(chosen.textContent)).length;
+        return wrongCount===1||(wrongCount===0 &&
+          visible.filter(t=>t===norm(other.textContent)).length===1 &&
+          modified.filter(t=>t===norm(other.textContent)).length===1);
       });
       return matches?1:0;
     }

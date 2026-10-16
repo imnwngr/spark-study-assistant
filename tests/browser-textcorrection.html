@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<h1 class="learningObject__title">1 | Review | Writing skill | 1e</h1>
+<div id="content_wrap_0" class="content-wrap"><div class="layout__rubric">Correct the five errors in the form.</div>
+<div class="layout__content"><div class="interaction ic-text-correction replace">
+<div class="contentblock ki24_view off"><p><span class="input-text" data-model-id="101">Title</span>:
+<span class="input-text" data-model-id="102">Occupation</span>:
+<span class="input-text" data-model-id="103">Nationality</span>:</p></div>
+</div></div></div>
+<script>window.chrome={runtime:{onMessage:{addListener(fn){window.__listener=fn;}}}};</script>
+<script src="../qti.js"></script>
+<script>
+const corrections=[{from:'Title',to:'Surname'},{from:'Occupation',to:'Date'},{from:'Nationality',to:'Gender'}];
+window.SparkQTI.fromDataJs=()=>({reason:'complete',answers:[{id:'q1',source:'qti',confidence:'high',answer:corrections.map(x=>x.from+' → '+x.to).join(' ; '),corrections}]});
+window.fetch=async()=>({ok:true,headers:{get(){return '3';}},text:async()=>"ok!"});
+const marker=document.createElement('script');marker.type='text/plain';marker.src='/cdn_proxy/fixture/data.js';document.head.append(marker);
+const widget=document.querySelector('.ki24_view');
+let done=0;
+widget.addEventListener('click',e=>{
+  const target=e.target.closest('.input-text');
+  if(!target)return;
+  const original=target.textContent;
+  target.classList.add('editing');
+  const popup=document.createElement('div');popup.className='tc_popup';
+  const heading=document.createElement('h1');heading.textContent=original;
+  const field=document.createElement('input');field.type='text';
+  const button=document.createElement('a');button.className='button button-submit';button.textContent=window.mockNoOK?'Apply':'OK';
+  button.addEventListener('click',()=>{
+    if(!field.value)return;
+    target.textContent=field.value;target.classList.remove('editing');target.classList.add('modified','icTextCorrection__item--modified');
+    popup.remove();done++;
+  });
+  popup.append(heading,field,button);widget.append(popup);field.focus();
+});
+</script>
+<script src="../content.js"></script>
+<script>
+(async()=>{
+  const send=message=>new Promise(resolve=>window.__listener(message,null,resolve));
+  const scan=await send({type:'SPARK_SCAN'});
+  const qti=await send({type:'SPARK_QTI',ids:['q1']});
+  const apply=await send({type:'SPARK_APPLY',answers:qti.result.answers});
+  const tokens=[...widget.querySelectorAll('.input-text')].map(x=>x.textContent);
+  const reopened=await send({type:'SPARK_SCAN'});
+  const r={scan:scan.result.questions.map(q=>q.kind),qti:qti.result.reason,
+    apply:apply.result,done,tokens,reopenedModified:reopened.result.questions[0].correctionModifiedTokens};
+  document.body.append(Object.assign(document.createElement('pre'),{id:'test-result',textContent:JSON.stringify(r)}));
+})().catch(e=>document.body.append(Object.assign(document.createElement('pre'),{id:'test-error',textContent:String(e)})));
+</script>
+</body></html>

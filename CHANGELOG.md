@@ -1,3 +1,10 @@
+## 0.7.12 — Trace-backed word correction (2026-10-16)
+
+- Use the real Spark `.tc_popup` input and `a.button-submit` OK control for verified QTI word corrections. No synthetic Enter or DOM-only rewrite.
+- Stop safely when the popup, editable field or OK control is missing or ambiguous, and verify the target word after Spark commits it.
+- Keep previous manually corrected tokens eligible for QTI mapping only when Spark marks them modified; preserve the exclusion of unsupported free-form writing.
+- Inspector remains unchanged; the real 157-event trace in Writing skill 1e resolved the missing UI interaction.
+
 ## v0.7.11 — Inspector iframe discovery and recording verification
 
 - Fix Inspector's false-positive recordings: v0.7.10 could start successfully on the Dashboard or `nullblank` frame even with zero `ic-text-correction` widgets, generating only `initial`/`final` events.

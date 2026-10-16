@@ -220,7 +220,7 @@ Bộ **109 bài kiểm thử Node** kiểm tra mapping QTI, radio, checkbox, ph�
 
 Mở popup extension, chọn nút Inspector. Tại tab mới, bấm **Capture screen** cho từng màn hình của bài Spark, rồi **Export JSON**. Công cụ chỉ đọc dữ liệu và không tự tải báo cáo lên mạng; hãy kiểm tra nội dung bài và câu trả lời trong JSON trước khi chia sẻ.
 
-### v0.7.11: Ghi tương tác và nhận diện iframe tin cậy
+### v0.7.12: Ghi tương tác và nhận diện iframe tin cậy
 
 Inspector hiển thị số iframe truy cập được, tự chờ và gắn bộ ghi khi tìm thấy widget `ic-text-correction`, theo dõi iframe xuất hiện trễ và báo rõ khi bản ghi không có thao tác sửa từ. JSON xuất ra chứa chẩn đoán iframe để điều tra lỗi. Chức năng Solve không thay đổi.
 

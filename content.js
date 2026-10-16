@@ -150,7 +150,9 @@
       const id='q1';
       questions.push({id,kind:'textCorrection',context:tidy(correctionWidget.textContent).slice(0,1200),
         localContext:tidy(correctionWidget.textContent).slice(0,1200),options:[],
-        correctionTokens:correctionTiles.map(t=>tidy(t.textContent)),rubric,wordBank:'',hint:'',before:'',after:'',
+        correctionTokens:correctionTiles.map(t=>tidy(t.textContent)),
+        correctionModifiedTokens:correctionTiles.filter(t=>t.classList.contains('modified') ||
+          t.classList.contains('icTextCorrection__item--modified')).map(t=>tidy(t.textContent)),rubric,wordBank:'',hint:'',before:'',after:'',
         block:1,position:1,applyable:true});
       refs.set(id,{kind:'textCorrection',node:correctionWidget});
       const screen=screenInfo(root);
@@ -467,59 +469,98 @@
       'Visible sequence verified; Spark persistence is not independently confirmed.':
       'Sequence order could not be verified.'};
   }
-  // Only real Spark UI clicks can update its correction state. No DOM rewrite.
+  // Recorded in Spark Inspector v3.3: clicking an inline token opens a
+  // .tc_popup with a native input and an <a.button-submit>OK</a>. The OK click
+  // commits the change to Spark's widget model; Enter alone does not.
   const visible=node=>{
     if(!node?.isConnected || node.closest('[hidden],[inert]'))return false;
     const style=getComputedStyle(node);
     return style.display!=='none'&&style.visibility!=='hidden'&&node.getClientRects().length>0;
   };
+  async function waitForUniqueCorrectionPopup(parent){
+    const deadline=Date.now()+1100;
+    while(Date.now()<deadline){
+      const popups=[...parent.querySelectorAll('.tc_popup')].filter(visible);
+      if(popups.length>0)return popups.length===1?popups[0]:null;
+      await wait(45);
+    }
+    return null;
+  }
+  function typeCorrectionIntoPopup(field,value){
+    if(!field?.matches('input[type="text"],input:not([type]),textarea') || !visible(field))return false;
+    // Keep focus until the OK control is clicked, like a real user. The old
+    // generic setText() blurs early and can dismiss this popup.
+    field.focus();
+    const proto=field.matches('textarea')?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+    const setter=Object.getOwnPropertyDescriptor(proto,'value')?.set;
+    if(setter)setter.call(field,value);else field.value=value;
+    field.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:value}));
+    return field.value===value;
+  }
+  async function confirmCorrection(target,expected,popup){
+    const buttons=[...popup.querySelectorAll('a.button-submit,button.button-submit')]
+      .filter(button=>visible(button)&&/^ok$/i.test(tidy(button.textContent)));
+    if(buttons.length!==1)return false;
+    const input=[...popup.querySelectorAll('input[type="text"],input:not([type]),textarea')].filter(visible);
+    if(input.length!==1 || !typeCorrectionIntoPopup(input[0],expected))return false;
+    // Spark's change handler may run before click when focus leaves the input.
+    input[0].dispatchEvent(new Event('change',{bubbles:true}));
+    buttons[0].click();
+    const deadline=Date.now()+1800;
+    while(Date.now()<deadline){
+      if(!target.isConnected)return false;
+      if(normalized(target.textContent)===normalized(expected) &&
+        !target.classList.contains('editing')){
+        await wait(100);
+        return normalized(target.textContent)===normalized(expected);
+      }
+      await wait(60);
+    }
+    return false;
+  }
   async function setTextCorrections(widget,response){
     const edits=response.corrections;
     if(!Array.isArray(edits)||!edits.length||edits.length>20 ||
       edits.some(e=>!e||typeof e.from!=='string'||typeof e.to!=='string'||
         !e.from.trim()||!e.to.trim()||normalized(e.from)===normalized(e.to)))
       return {status:'skipped',detail:'Missing validated QTI word-correction pairs.'};
+    const parent=widget.closest('.ic-text-correction');
+    if(!parent)return {status:'uncertain',detail:'Correction widget is missing.'};
     for(const edit of edits){
       const tokens=[...widget.querySelectorAll('.input-text')];
       const matching=tokens.filter(n=>normalized(n.textContent)===normalized(edit.from));
-      const already=tokens.some(n=>normalized(n.textContent)===normalized(edit.to));
-      // A single target token is required. Words from other questions may repeat.
+      const already=tokens.some(n=>normalized(n.textContent)===normalized(edit.to) &&
+        (n.classList.contains('modified')||n.classList.contains('icTextCorrection__item--modified')));
       if(matching.length!==1){
         if(matching.length===0&&already)continue;
         return {status:'uncertain',detail:`Cannot uniquely locate word: ${edit.from}`};
       }
       const target=matching[0];
       if(!visible(target))return {status:'uncertain',detail:'Correction target is not visible.'};
+      // An already-open unrelated correction popup is ambiguous: do not type
+      // into another user's work or press an unrelated submit button.
+      if([...parent.querySelectorAll('.tc_popup')].some(visible))
+        return {status:'uncertain',detail:'Close the open Spark correction editor and retry.'};
       target.click();
-      await wait(140);
-      if(normalized(target.textContent)===normalized(edit.to))continue;
-      const parent=widget.closest('.ic-text-correction');
-      const choiceSelector='[role="option"],[role="menuitem"],.listbox__choice,.ui-menu-item,'+
-        '.correction-option,.replace-option,[class*="correction-choice"],[class*="replacement-choice"]';
-      const options=[...(parent?.querySelectorAll(choiceSelector)||[]),
-        ...document.querySelectorAll('[role="option"],[role="menuitem"],.listbox__choice')]
-        .filter(el=>visible(el)&&!el.closest('.ki24_view')&&normalized(el.textContent)===normalized(edit.to));
-      const unique=[...new Set(options)];
-      if(unique.length===1){
-        unique[0].click();
-      }else if(unique.length===0){
-        // Some correction variants open a real, temporary text editor. Only
-        // write to the single new visible input inside this interaction.
-        const editors=[...(parent?.querySelectorAll('input,textarea,[contenteditable="true"]')||[])]
-          .filter(node=>isTextField(node)&&visible(node) &&
-            (node.closest('[role="dialog"],.popup,.popper,.ki24_edit,.ki24_edit_view') ||
-             !widget.contains(node)));
-        if(editors.length!==1)return {status:'uncertain',detail:`No unique Spark replacement control for ${edit.from}.`};
-        if(!setText(editors[0],edit.to))return {status:'uncertain',detail:'Spark text editor rejected replacement.'};
-        editors[0].dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',bubbles:true}));
-        editors[0].dispatchEvent(new KeyboardEvent('keyup',{key:'Enter',code:'Enter',bubbles:true}));
-      }else return {status:'uncertain',detail:`Multiple replacement choices for ${edit.from}.`};
-      await wait(160);
-      if(normalized(target.textContent)!==normalized(edit.to) &&
-        [...widget.querySelectorAll('.input-text')].some(n=>normalized(n.textContent)===normalized(edit.from)))
+      const popup=await waitForUniqueCorrectionPopup(parent);
+      if(popup){
+        const confirmed=await confirmCorrection(target,edit.to,popup);
+        if(!confirmed)return {status:'uncertain',detail:`Spark popup did not confirm ${edit.from} → ${edit.to}.`};
+      }else{
+        // Some other correction widgets expose discrete choices instead of
+        // the recorded text-entry popup. Only accept a unique real UI option.
+        const choiceSelector='[role="option"],[role="menuitem"],.listbox__choice,.ui-menu-item,'+
+          '.correction-option,.replace-option,[class*="correction-choice"],[class*="replacement-choice"]';
+        const options=[...(parent.querySelectorAll(choiceSelector))]
+          .filter(el=>visible(el)&&!el.closest('.ki24_view')&&normalized(el.textContent)===normalized(edit.to));
+        if(options.length!==1)return {status:'uncertain',detail:`No unique Spark replacement control for ${edit.from}.`};
+        options[0].click();
+        await wait(220);
+      }
+      if(normalized(target.textContent)!==normalized(edit.to))
         return {status:'uncertain',detail:`Spark did not visibly apply ${edit.to}.`};
     }
-    return {status:'filled',detail:'Correction changes verified in visible Spark controls; gradebook not confirmed.'};
+    return {status:'filled',detail:'Spark accepted all visible word corrections; gradebook not confirmed.'};
   }
   async function apply(answers) {
     if(!lastScan.activeRoot||activeContentRoot()!==lastScan.activeRoot){

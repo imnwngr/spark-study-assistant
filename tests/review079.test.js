@@ -71,3 +71,25 @@ test('popup forwards only published correction pairs to the Spark UI',()=>{
   assert.match(content,/async function setTextCorrections/);
   assert.doesNotMatch(content,/widget\.innerHTML\s*=/);
 });
+
+test('a previously corrected Spark token remains QTI-valid only when marked modified',()=>{
+  const partial=correctionQuestion()[0];
+  partial.correctionTokens=partial.correctionTokens.map(t=>t==='Title'?'Surname':t);
+  partial.correctionModifiedTokens=['Surname'];
+  assert.equal(Q.mapAssessment(correctionXml(),[partial]).reason,'complete');
+  assert.equal(Q.signatureScore(correctionXml(),[partial]),1);
+  const unsigned={...partial,correctionModifiedTokens:[]};
+  assert.equal(Q.mapAssessment(correctionXml(),[unsigned]).answers.length,0);
+  assert.equal(Q.signatureScore(correctionXml(),[unsigned]),0);
+});
+
+test('trace-backed correction adapter uses tc_popup input and OK instead of synthetic Enter',()=>{
+  const fs=require('node:fs');const path=require('node:path');
+  const content=fs.readFileSync(path.join(__dirname,'../content.js'),'utf8');
+  assert.match(content,/waitForUniqueCorrectionPopup/);
+  assert.match(content,/\.tc_popup/);
+  assert.match(content,/button-submit/);
+  assert.match(content,/buttons\[0\]\.click\(\)/);
+  const correction=content.slice(content.indexOf('async function confirmCorrection'),content.indexOf('async function apply(answers)'));
+  assert.doesNotMatch(correction,/KeyboardEvent\('keydown'/);
+});
