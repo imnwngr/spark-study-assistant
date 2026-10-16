@@ -1,3 +1,10 @@
+## v0.7.10 — Correction Interaction Trace Inspector
+
+- Upgraded the integrated Exercise Inspector to **v3.2.0** with opt-in **Start recording → manual edit → Stop recording → Export JSON** interaction tracing. Capture screen and trace recording coexist.
+- Observe real click, input, focus, key-confirmation (non-character keys only), and DOM mutation events for `ic-text-correction` across Spark content frames. Include before/after token text, `data-model-id` and modified classes, plus temporary editor/dialog/menu state.
+- Limit each frame to 180 events / 420 KB and auto-stop after three minutes; no input mutation or submission is performed. Do not capture passwords or URLs with query strings. Exports remain local and must be reviewed for entered values.
+- Captured user sample confirms that `Smith` → `Smithhh` and `25` → `36` were accepted and marked modified, but **does not show the editor confirmation lifecycle**. Therefore the Solve correction adapter is intentionally unchanged until a manual interaction trace provides enough evidence.
+
 ## v0.7.9 — Review choice repair and QTI word correction
 
 - Fixed Avallain radio choice labels: decorative dot icons no longer corrupt QTI option comparison; shuffled Cn_m IDs remain authoritative.

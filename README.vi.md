@@ -220,6 +220,10 @@ Bộ **109 bài kiểm thử Node** kiểm tra mapping QTI, radio, checkbox, ph�
 
 Mở popup extension, chọn nút Inspector. Tại tab mới, bấm **Capture screen** cho từng màn hình của bài Spark, rồi **Export JSON**. Công cụ chỉ đọc dữ liệu và không tự tải báo cáo lên mạng; hãy kiểm tra nội dung bài và câu trả lời trong JSON trước khi chia sẻ.
 
+### v0.7.10: Inspector ghi lại thao tác sửa từ
+
+Mở Exercise Inspector từ popup → **Start recording** → quay lại Spark, **chọn từ sai, nhập từ sửa và xác nhận thủ công** → trở về Inspector → **Stop recording** → **Export JSON**. Có thể Capture screen trước/sau. Recorder chỉ đọc sự kiện, theo dõi ô nhập/menu xuất hiện tạm thời; không tự sửa, không nộp hoặc chuyển screen. Tự dừng sau ba phút, giới hạn dung lượng, không lấy mật khẩu. Hãy kiểm tra dữ liệu JSON trước khi chia sẻ. Adapter tự sửa từ vẫn **chưa được xác minh trên Spark thật**.
+
 ### v0.7.9: Radio Review và sửa từ sai
 
 Đọc nhãn thật của radio để không lẫn dấu chấm trang trí khi đối chiếu QTI. Dạng `ic-text-correction.replace` chỉ được xử lý khi QTI khớp duy nhất từng từ sai với cặp lựa chọn tương ứng; thao tác thử sử dụng điều khiển gốc của Spark, không tự sửa DOM. Chưa xác nhận hành vi trên Spark thật, vì vậy khi không tìm thấy lựa chọn an toàn extension sẽ dừng; không tự Next đối với dạng sửa từ này. Các dạng Writing/Speaking còn lại vẫn không tự giải.

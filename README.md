@@ -227,6 +227,10 @@ The extension now selects a unique actionable Spark **Submit to Gradebook** butt
 
 Open the extension popup and select the Inspector toolbar button. In the Inspector tab, capture each Spark screen separately, then export JSON. The inspector is read-only and never uploads data itself. Review exported answers and exercise text before sharing.
 
+### v0.7.10: Interaction Trace Inspector
+
+Open Exercise Inspector from the popup. Select **Start recording**, switch to the Spark correction exercise, **manually select an incorrect word, enter its replacement and confirm**, then return to Inspector, choose **Stop recording** and **Export JSON**. Capture screens before/after as desired. Recording observes correction events and transient editors without changing answers, submitting or navigating. It automatically stops after three minutes, limits log sizes, and excludes password fields. Review exported entered text before sharing. The word-correction Solve adapter is **not yet confirmed** by live Spark evidence.
+
 ### v0.7.9: Review radio labels and word corrections
 
 Review radio groups now extract actual option captions rather than the decorative dot. The `ic-text-correction.replace` exercise can be mapped only when the published QTI proves a unique correction pair for each incorrect visible word; application uses Spark's own controls. **Synthetic clicks might not be accepted on the live Spark widget, so inspect the result before proceeding.** Other writing skills remain manual and auto-Next is disabled for this correction mode until grading is verified.
