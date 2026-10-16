@@ -314,6 +314,11 @@ $('submitNext').addEventListener('click',submitAndNext);
 
 $('auto').addEventListener('click',autoSolveAndFill);
 $('settings').addEventListener('click',()=>chrome.runtime.openOptionsPage());
+$('inspector').addEventListener('click',async()=>{
+  const [tab]=await chrome.tabs.query({active:true,currentWindow:true});
+  const url=chrome.runtime.getURL('inspector.html')+(tab?.id?'?tabId='+tab.id:'');
+  await chrome.tabs.create({url});
+});
 $('scan').addEventListener('click',scanPage);
 $('copy').addEventListener('click',copyExercise);
 async function showMode(){

@@ -221,3 +221,8 @@ The authenticated **1b | Grammar | 3** submit/next diagnostic shows that **Submi
 The extension now selects a unique actionable Spark **Submit to Gradebook** button first and uses **Check Answers** only when that is the actionable control. It requires an explicit confirmation and all recognized answers to be successfully filled and reverified. It waits for a verifiable in-page button transition before requesting Next; on ambiguity, timeout, manual edits or missing Next it stops without attempting another click. The user may disable automatic Next in Settings. **A disabled button is not proof of a successful server-side gradebook save.** Only one real activity was inspected; synthetic Chromium tests cover other branches.
 
 
+
+
+### Exercise Inspector (v0.7.8)
+
+Open the extension popup and select the Inspector toolbar button. In the Inspector tab, capture each Spark screen separately, then export JSON. The inspector is read-only and never uploads data itself. Review exported answers and exercise text before sharing.

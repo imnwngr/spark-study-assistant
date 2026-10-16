@@ -1,3 +1,11 @@
+## v0.7.8 — Integrated Exercise Inspector
+
+- Open the **Exercise Inspector** using the new popup toolbar button; no DevTools Console needed.
+- Capture multiple screens of an open Spark exercise, inspect frame-level interaction classes and selected controls, and export a JSON file on demand.
+- Collect each frame through the extension's all-frame read-only inspector content script. The inspector never solves, submits, changes answers or advances screens.
+- The two supplied samples show existing radio/dropdown interactions and Writing skill `ic-text-correction`; Writing skill remains excluded from auto-solving. No new answer adapter is claimed for those samples.
+- Exports are local until the user chooses to share them; they may include exercise text and entered values.
+
 ## 0.7.7 — Verified multi-screen Solve (experimental)
 
 - Solve detects the currently visible `content_wrap_N` and validates a contiguous 0-based set of screen roots before attempting intra-activity progression.

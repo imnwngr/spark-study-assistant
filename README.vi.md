@@ -214,3 +214,8 @@ Bộ **109 bài kiểm thử Node** kiểm tra mapping QTI, radio, checkbox, ph�
   <sub>Dự án độc lập, không trực thuộc hoặc được National Geographic Learning, Spark hay Avallain chứng thực.</sub><br /><br />
   <a href="README.md">English README</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/AUTOMATION_DISCOVERY.md">Giới hạn tự động hóa</a>
 </div>
+
+
+### Exercise Inspector (v0.7.8)
+
+Mở popup extension, chọn nút Inspector. Tại tab mới, bấm **Capture screen** cho từng màn hình của bài Spark, rồi **Export JSON**. Công cụ chỉ đọc dữ liệu và không tự tải báo cáo lên mạng; hãy kiểm tra nội dung bài và câu trả lời trong JSON trước khi chia sẻ.

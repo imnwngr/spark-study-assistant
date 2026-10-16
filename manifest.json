@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "__MSG_extName__",
   "description": "__MSG_extDescription__",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "default_locale": "en",
   "icons": {
     "16": "icons/icon16.png",
@@ -38,7 +38,8 @@
       "match_about_blank": true,
       "js": [
         "qti.js",
-        "content.js"
+        "content.js",
+        "inspector-content.js"
       ],
       "run_at": "document_idle"
     }
